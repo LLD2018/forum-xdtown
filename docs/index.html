@@ -1,0 +1,2302 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>心动小镇 - TapTap论坛舆情分析</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js">
+</script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+    background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+    color: #e0e0e0;
+    min-height: 100vh;
+}
+.header {
+    text-align: center;
+    padding: 30px 20px 10px;
+    background: rgba(255,255,255,0.03);
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.header h1 {
+    font-size: 28px;
+    background: linear-gradient(90deg, #a78bfa, #60a5fa);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 8px;
+}
+.header .subtitle { color: #94a3b8; font-size: 14px; }
+.stats-row {
+    display: flex; justify-content: center; gap: 24px;
+    flex-wrap: wrap; padding: 20px;
+}
+.stat-card {
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 12px; padding: 18px 28px; text-align: center;
+    min-width: 120px;
+}
+.stat-card .value {
+    font-size: 32px; font-weight: 700;
+    background: linear-gradient(90deg, #c084fc, #818cf8);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+.stat-card .label { color: #94a3b8; font-size: 13px; margin-top: 4px; }
+.charts-wrapper {
+    max-width: 1200px; margin: 0 auto; padding: 0 20px;
+}
+.chart-container {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 16px; padding: 24px; margin-bottom: 24px;
+}
+.chart-container h3 {
+    font-size: 16px; color: #cbd5e1; margin-bottom: 16px;
+    padding-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.chart-canvas-wrap { position: relative; height: 380px; }
+.footer {
+    text-align: center; padding: 20px; color: #64748b;
+    font-size: 12px;
+}
+/* 折叠卡片 */
+.daily-summary-section {
+    max-width: 1200px; margin: 0 auto; padding: 0 20px 40px;
+}
+.daily-summary-section h3 {
+    font-size: 18px; color: #cbd5e1; margin-bottom: 20px;
+    text-align: center;
+}
+.daily-card {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px; margin-bottom: 12px; overflow: hidden;
+    transition: background 0.2s;
+}
+.daily-card:hover { background: rgba(255,255,255,0.06); }
+.card-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 20px; cursor: pointer; user-select: none;
+    gap: 16px;
+}
+.card-date {
+    font-size: 15px; font-weight: 600; color: #e2e8f0;
+    min-width: 100px;
+}
+.card-stats {
+    display: flex; gap: 16px; font-size: 13px; color: #94a3b8;
+    flex: 1; align-items: center;
+}
+.card-overview-preview {
+    color: #94a3b8; overflow: hidden; text-overflow: ellipsis;
+    white-space: nowrap; max-width: 360px;
+}
+.card-score-tag {
+    color: #60a5fa; font-weight: 600; white-space: nowrap;
+    font-size: 12px;
+}
+.card-arrow {
+    font-size: 12px; color: #64748b; transition: transform 0.3s;
+    min-width: 20px; text-align: center;
+}
+.daily-card.open .card-arrow { transform: rotate(180deg); }
+.card-body {
+    display: none; padding: 0 20px 20px; border-top: 1px solid rgba(255,255,255,0.06);
+    font-size: 14px; line-height: 1.8;
+}
+.daily-card.open .card-body { display: block; }
+.overview-line {
+    color: #cbd5e1; margin: 8px 0 4px;
+    padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.card-body .pos-label {
+    color: #34d399; font-weight: 600; margin-top: 10px;
+}
+.card-body .neg-label {
+    color: #f87171; font-weight: 600; margin-top: 10px;
+}
+.card-body .summary-text {
+    color: #cbd5e1; margin-left: 8px;
+}
+/* 话题详细样式 */
+.pos-topic, .neg-topic {
+    margin: 8px 0 12px 12px; padding-left: 16px;
+    border-left: 2px solid rgba(255,255,255,0.06);
+}
+.topic-dot {
+    display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+    margin-right: 8px; vertical-align: middle;
+}
+.pos-topic .topic-dot { background: #34d399; }
+.neg-topic .topic-dot { background: #f87171; }
+.topic-name {
+    font-weight: 600; color: #e2e8f0; font-size: 14px;
+    vertical-align: middle;
+}
+.topic-detail {
+    margin-top: 4px; color: #94a3b8; font-size: 13px;
+    line-height: 1.7; padding-left: 16px;
+}
+.no-summary {
+    text-align: center; color: #64748b; padding: 40px;
+    font-size: 14px;
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+    <h1>心动小镇</h1>
+    <p class="subtitle">TapTap论坛玩家舆情时间序列分析</p>
+    <p class="subtitle">数据范围: 2026-02-21 ~ 2026-05-21 | 生成时间: 2026-05-22 16:33</p>
+</div>
+
+<div class="stats-row">
+    <div class="stat-card">
+        <div class="value">9994</div>
+        <div class="label">帖子总数</div>
+    </div>
+    <div class="stat-card">
+        <div class="value">71.37</div>
+        <div class="label">观点信号均分</div>
+    </div>
+    <div class="stat-card">
+        <div class="value">3214</div>
+        <div class="label">有效观点帖</div>
+    </div>
+    <div class="stat-card">
+        <div class="value">90</div>
+        <div class="label">统计天数</div>
+    </div>
+    <div class="stat-card">
+        <div class="value">89</div>
+        <div class="label">已总结天数</div>
+    </div>
+</div>
+
+<div class="charts-wrapper">
+    <div class="chart-container">
+        <h3>每日观点信号评分趋势（剔除空内容+中性帖）</h3>
+        <div class="chart-canvas-wrap">
+            <canvas id="scoreChart"></canvas>
+        </div>
+    </div>
+
+    <div class="chart-container">
+        <h3>每日发帖数量</h3>
+        <div class="chart-canvas-wrap">
+            <canvas id="countChart"></canvas>
+        </div>
+    </div>
+
+    <div class="chart-container">
+        <h3>每日情绪分布 (正面/中性/负面)</h3>
+        <div class="chart-canvas-wrap">
+            <canvas id="sentimentChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<div class="daily-summary-section">
+    <h3>每日发帖内容总结（点击展开）</h3>
+        <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-05-20</span>
+            <span class="card-stats">
+                <span>观点帖 9 条</span>
+                <span class="card-score-tag">信号分 68.89</span>
+                <span class="card-overview-preview">正面帖以喷泉最幸福、520小时纪念、520快乐和建造节搭子为主；负面帖以波叔表情包够不到、积木套餐五星体力不如二星和地图跑路麻烦为主。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖以喷泉最幸福、520小时纪念、520快乐和建造节搭子为主；负面帖以波叔表情包够不到、积木套餐五星体力不如二星和地图跑路麻烦为主。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">最幸福的喷泉</span><div class="topic-detail">「这个喷泉是目前最幸福的喷泉」评价。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">520小时游戏时长纪念</span><div class="topic-detail">「520这天刚好玩了心动小镇520个小时❤」浪漫。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">建造节找搭子一起建</span><div class="topic-detail">积极。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">520快乐祝福</span><div class="topic-detail">庆祝。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">波叔门口表情包够不到</span><div class="topic-detail">「我真是要哭了」困扰。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">积木套餐五星体力回复低</span><div class="topic-detail">「新出的积木套餐，五星一口回的体力值，没有一个二星提拉米苏回的多」受骗。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">跑图麻烦NPC隔得远</span><div class="topic-detail">「npc隔得远，传送点少...没有冲刺，跑的慢悠慢悠的」批评。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-05-19</span>
+            <span class="card-stats">
+                <span>观点帖 18 条</span>
+                <span class="card-score-tag">信号分 74.94</span>
+                <span class="card-overview-preview">正面帖以好治愈、蒸棒、厨房细节满分和520活动为主；负面帖以扩张画板诉求、卡死所有人、更新后号没了和抽奖概率低为主。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖以好治愈、蒸棒、厨房细节满分和520活动为主；负面帖以扩张画板诉求、卡死所有人、更新后号没了和抽奖概率低为主。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">厨房细节符合现实习惯</span><div class="topic-detail">「每一个细节都符合现实我生活使用习惯。」赞赏。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">水滴荷叶手持懂</span><div class="topic-detail">「谁来懂下！这个水滴荷叶手持！」激动。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">520限时活动穿搭交友赛</span><div class="topic-detail">宣传。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">心动小镇蒸棒</span><div class="topic-detail">谐音赞。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">放画板都不够扩张1000</span><div class="topic-detail">「能不能再扩张一点，1000也行啊放画板都不够」抗议。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">所有人卡死你怎么回事</span><div class="topic-detail">「心动小镇你怎么回事 所有人卡死了」崩溃。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">更新后号没了成新号</span><div class="topic-detail">「我服了把...开服玩到现在充了好几百」心疼。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">抽奖概率低神人游戏</span><div class="topic-detail">讽刺。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-05-18</span>
+            <span class="card-stats">
+                <span>观点帖 11 条</span>
+                <span class="card-score-tag">信号分 69.0</span>
+                <span class="card-overview-preview">正面帖以和朋友玩有趣、下期奖池期待、建造成品和零氪穿搭萌为主；负面帖以玩家退游怀念、创造节评定bug、穿模和避雷为主。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖以和朋友玩有趣、下期奖池期待、建造成品和零氪穿搭萌为主；负面帖以玩家退游怀念、创造节评定bug、穿模和避雷为主。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">和朋友做房子有趣</span><div class="topic-detail">「真的好好玩，跟朋友一起真的很美好，一起做房子好有趣！」推荐。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">零氪宝宝这样穿超萌哒</span><div class="topic-detail">分享。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">建造节二十几天成品感谢</span><div class="topic-detail">「一个人敲敲打打二十几天终于看到成品了」欣慰。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">回游求带</span><div class="topic-detail">积极。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">玩家陆陆续续退游</span><div class="topic-detail">「为什么大家都陆陆续续的退游了…当初那个一玩几个小时的你 去哪了？」怀念。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">创造节达到分数不满足展示</span><div class="topic-detail">困惑。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">穿模</span><div class="topic-detail">不爽。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">避雷</span><div class="topic-detail">强烈提醒。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-05-17</span>
+            <span class="card-stats">
+                <span>观点帖 29 条</span>
+                <span class="card-score-tag">信号分 72.48</span>
+                <span class="card-overview-preview">正面帖以可爱、拍照点位、跑酷挑战和三个崽可爱为主；负面帖以交友方式奇怪、女性尊重呼吁、建造节海岛bug和观鸟bug为主。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖以可爱、拍照点位、跑酷挑战和三个崽可爱为主；负面帖以交友方式奇怪、女性尊重呼吁、建造节海岛bug和观鸟bug为主。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">跑酷挑战招募</span><div class="topic-detail">「难度有简单，中等，困难。要求不可以作弊。」组织活动。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">全世界第一美的视频</span><div class="topic-detail">夸张赞美。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">固玩搭子寻找</span><div class="topic-detail">积极。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">新动作配R&B</span><div class="topic-detail">乐趣。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">交友方式像选妃奇怪</span><div class="topic-detail">「一群人围着，你选了那个，另一个不开心...应该是小学生」批评。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">观鸟事件又出bug</span><div class="topic-detail">失望。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">建造节海岛门bug</span><div class="topic-detail">空气墙或无视门。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">账号丢失玩了很久没了</span><div class="topic-detail">愤怒辱骂。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-05-16</span>
+            <span class="card-stats">
+                <span>观点帖 28 条</span>
+                <span class="card-score-tag">信号分 70.61</span>
+                <span class="card-overview-preview">正面帖以可爱是真的、新头发乖、一抽出全部和搞笑亲子建造节为主；负面帖以浇水任务完不成、卡顿、钓鱼100次没五星和好感度丢失为主。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖以可爱是真的、新头发乖、一抽出全部和搞笑亲子建造节为主；负面帖以浇水任务完不成、卡顿、钓鱼100次没五星和好感度丢失为主。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">一抽出全部惊到</span><div class="topic-detail">接欧气。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">新出的动作搭配萌</span><div class="topic-detail">「新出的动作搭配这一身也太萌啦」喜爱。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">建造节陪9岁儿子</span><div class="topic-detail">亲子温馨。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">线条小狗萌之萌之</span><div class="topic-detail">表白。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">浇水任务一直没法完成</span><div class="topic-detail">bug。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">卡成这样登录就这样</span><div class="topic-detail">愤怒。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">钓鱼10级100多次没五星</span><div class="topic-detail">「跟假的一样」怀疑。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">误删好友好感度全没</span><div class="topic-detail">「怎么样能把误删好友的好感度补回来」无助。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-05-15</span>
+            <span class="card-stats">
+                <span>观点帖 22 条</span>
+                <span class="card-score-tag">信号分 75.09</span>
+                <span class="card-overview-preview">正面帖以小狗贴贴满级、拼合街市攻略、人生第一辆车和带萌新为主；负面帖以放置卡死、订购券获取少、任务无法完成和红点消不掉为主。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖以小狗贴贴满级、拼合街市攻略、人生第一辆车和带萌新为主；负面帖以放置卡死、订购券获取少、任务无法完成和红点消不掉为主。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">线条小狗满级摆件拿到</span><div class="topic-detail">「线条小狗满级奖励两个摆件拿到啦」喜悦。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">拼合街市潮流季攻略</span><div class="topic-detail">「心动小镇-拼合街市潮流季攻略来啦！！！」兴奋。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">人生第一辆车擦亮出发</span><div class="topic-detail">仪式感。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">周末返回心动小镇</span><div class="topic-detail">期待。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">一放东西就直接卡死</span><div class="topic-detail">「这种情况怎么办？」求助。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">订购券获取渠道不足</span><div class="topic-detail">呼吁。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">帽子红点一直点不掉</span><div class="topic-detail">强迫症。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">退游早内存不够</span><div class="topic-detail">庆幸。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-05-14</span>
+            <span class="card-stats">
+                <span>观点帖 11 条</span>
+                <span class="card-score-tag">信号分 79.36</span>
+                <span class="card-overview-preview">正面帖以长耳鸮新点位、爆率真高五星好评、位置播报和电玩小子教程为主；负面帖以宠物干扰种菜、十连抽失望和物是人非为主。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖以长耳鸮新点位、爆率真高五星好评、位置播报和电玩小子教程为主；负面帖以宠物干扰种菜、十连抽失望和物是人非为主。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">爆率真高五星好评</span><div class="topic-detail">「这游戏真好玩，爆率真高，五星好评！」罕见盛赞。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">位置播报与流星雨提醒</span><div class="topic-detail">每日服务。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">电玩小子搭建教程</span><div class="topic-detail">分享。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">找回失散朋友</span><div class="topic-detail">情感。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">宠物干扰种菜放家具</span><div class="topic-detail">「他们站在那里老是影响，还中不了，好烦啊。」请求改。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">十连抽失望</span><div class="topic-detail">吐槽。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">今非昔比物是人非</span><div class="topic-detail">感慨退步。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-05-13</span>
+            <span class="card-stats">
+                <span>观点帖 13 条</span>
+                <span class="card-score-tag">信号分 76.92</span>
+                <span class="card-overview-preview">正面帖以新房子整个世界、五级领摆件、线条小狗可爱和做饭群为主；负面帖以沙滩季弃坑、爆率可以跳了、卡死和避雷恶俗男为主。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖以新房子整个世界、五级领摆件、线条小狗可爱和做饭群为主；负面帖以沙滩季弃坑、爆率可以跳了、卡死和避雷恶俗男为主。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">新盖房子一觉睡醒全世界</span><div class="topic-detail">「新盖的房子，一觉睡醒就是整个世界」诗意。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">13只出五星太爽</span><div class="topic-detail">炫耀。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">超简单卡灶台效率翻倍</span><div class="topic-detail">实用攻略。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">同频的人像礼物</span><div class="topic-detail">感谢遇见。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">爆率可以跳了</span><div class="topic-detail">失望。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">沙滩季玩过弃坑</span><div class="topic-detail">暗示不满。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">卡死跨年到现在都卡</span><div class="topic-detail">「每次上线都卡死」哭诉。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">避雷恶俗男骚扰</span><div class="topic-detail">「希望官方能封一下」厌恶。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-05-12</span>
+            <span class="card-stats">
+                <span>观点帖 30 条</span>
+                <span class="card-score-tag">信号分 71.27</span>
+                <span class="card-overview-preview">正面帖以萌萌展示、新衣服搭、小狗存档和彩虹好看为主；负面帖以载具消失、种植不出五星、蓝图无撤销和活动卡为主。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖以萌萌展示、新衣服搭、小狗存档和彩虹好看为主；负面帖以载具消失、种植不出五星、蓝图无撤销和活动卡为主。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">小狗存档超级可爱</span><div class="topic-detail">「超级无敌螺旋可爱💓蹦蹦跳跳小狗🥰」赞美。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">登录界面最好看</span><div class="topic-detail">表白。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">小恶魔阔腿裤种草</span><div class="topic-detail">「不要放过这个小恶魔阔腿裤呀！」推荐。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">今日彩虹真好看</span><div class="topic-detail">欣赏。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">长时间消失载具不见</span><div class="topic-detail">抱怨。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">种植全弄不出五星</span><div class="topic-detail">「烦死了」不满。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">蓝图没有撤销功能</span><div class="topic-detail">「真的好讨厌蓝图没有撤销功能...气的把家具全卖了」冲动。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">垃圾游戏</span><div class="topic-detail">辱骂。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-05-11</span>
+            <span class="card-stats">
+                <span>观点帖 31 条</span>
+                <span class="card-score-tag">信号分 74.03</span>
+                <span class="card-overview-preview">正面帖以小镇第一支舞、积木村庄、新舞蹈帅和绿色清新为主；负面帖以家具更得慢、抽不到头发、卡顿和种植五星不出为主。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖以小镇第一支舞、积木村庄、新舞蹈帅和绿色清新为主；负面帖以家具更得慢、抽不到头发、卡顿和种植五星不出为主。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">积木村庄彩色小镇</span><div class="topic-detail">「是彩色的小镇哦～」分享。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">新舞蹈动作很帅</span><div class="topic-detail">「新的舞蹈动作真的很帅啊～」赞。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">新庆典活动特效很美</span><div class="topic-detail">夸奖。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">自由拼接宠物家零成本</span><div class="topic-detail">好评。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">家具更得慢</span><div class="topic-detail">抱怨。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">抽不到头发</span><div class="topic-detail">「为什么我抽不到头发！！！」抓狂。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">卡顿延迟明显</span><div class="topic-detail">希望修复。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">种了六组没五星</span><div class="topic-detail">「种吐了要」愤怒。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-05-10</span>
+            <span class="card-stats">
+                <span>观点帖 36 条</span>
+                <span class="card-score-tag">信号分 66.61</span>
+                <span class="card-overview-preview">正面帖以胜利之舞、固玩搭子、线条小狗适配和五星积木小丑鱼为主；负面帖以越来越无聊、食谱凭空消失、订购券概率低和神经玩家为主。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖以胜利之舞、固玩搭子、线条小狗适配和五星积木小丑鱼为主；负面帖以越来越无聊、食谱凭空消失、订购券概率低和神经玩家为主。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">好舞不挑曲超绝适配</span><div class="topic-detail">「线条小狗联动超绝适配感！」夸赞。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">钓鱼捕虫全毕业</span><div class="topic-detail">「和朋友们大肝特肝」庆祝。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">新动作帅</span><div class="topic-detail">赞赏。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">五星积木小丑鱼一起拿下</span><div class="topic-detail">组队。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">食谱凭空消失bug</span><div class="topic-detail">「在网上搜了攻略...不是玩个游戏真糟心」愤怒。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">越来越无聊没有动力</span><div class="topic-detail">孤单。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">订购券概率低</span><div class="topic-detail">吐槽。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">遇见神经玩家追着骂</span><div class="topic-detail">愤怒。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-05-09</span>
+            <span class="card-stats">
+                <span>观点帖 41 条</span>
+                <span class="card-score-tag">信号分 74.49</span>
+                <span class="card-overview-preview">正面帖以好日子感谢、小卷发可爱、手册衣服萌和新动作帅为主；负面帖以兑换券不能用、食物被吃完、任务BUG和卡死为主。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖以好日子感谢、小卷发可爱、手册衣服萌和新动作帅为主；负面帖以兑换券不能用、食物被吃完、任务BUG和卡死为主。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">俏皮小卷发太可爱</span><div class="topic-detail">「蓝钻奖池发型 俏皮小卷发太可爱了」称赞。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">手册衣服萌酷帅</span><div class="topic-detail">「这次手册衣服好萌啊 酷帅小男孩！」喜爱。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">潮流季新动作活力满满</span><div class="topic-detail">赞美。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">衣服到货等一周穿上</span><div class="topic-detail">高兴。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">金橡果兑换券使用不了</span><div class="topic-detail">困惑。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">食物被吃完迷惑</span><div class="topic-detail">抱怨。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">快乐双重奏查看进度卡死</span><div class="topic-detail">bug。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">卡死20分钟卡4次手机滚烫</span><div class="topic-detail">强烈抱怨。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-05-08</span>
+            <span class="card-stats">
+                <span>观点帖 18 条</span>
+                <span class="card-score-tag">信号分 66.78</span>
+                <span class="card-overview-preview">正面帖以两个头发可爱、纯黑柴犬拿下、风物女装头套潮和羞涩告白主页照为主；负面帖以离谱bug、社交风气猎奇、工具卡和避雷乞讨为主。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖以两个头发可爱、纯黑柴犬拿下、风物女装头套潮和羞涩告白主页照为主；负面帖以离谱bug、社交风气猎奇、工具卡和避雷乞讨为主。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">纯黑柴犬拿下</span><div class="topic-detail">「也是让我刷到纯黑柴犬了——养狗也正好等级四，正好把它拿下。」开心。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">风物女装头套很潮</span><div class="topic-detail">赞美。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">羞涩告白主页照</span><div class="topic-detail">甜蜜。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">新奖池小单品必须有</span><div class="topic-detail">种草。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">离谱bug</span><div class="topic-detail">不满。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">社交风气猎奇</span><div class="topic-detail">「何意味，此游社交风气如此猎奇吗」质疑。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">一放工具就卡动不了</span><div class="topic-detail">bug。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">乞讨避雷</span><div class="topic-detail">「张嘴就找我要」举报。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-05-07</span>
+            <span class="card-stats">
+                <span>观点帖 48 条</span>
+                <span class="card-score-tag">信号分 76.88</span>
+                <span class="card-overview-preview">正面帖以十连双彩一金福至心灵、再次感谢、小翅膀背带裤封神和线条小狗双人动作为主；负面帖以依旧大保底、开服玩家失望、登录故障和卡顿为主。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖以十连双彩一金福至心灵、再次感谢、小翅膀背带裤封神和线条小狗双人动作为主；负面帖以依旧大保底、开服玩家失望、登录故障和卡顿为主。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">十连双彩一金福至心灵</span><div class="topic-detail">详述抽卡玄学，抽中斗篷衣服双彩，狂喜。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">小翅膀背带裤封神</span><div class="topic-detail">「真的很封神啊！！还是男装裤子」赞美。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">线条小狗双人动作好喜欢</span><div class="topic-detail">肯定。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">粉蓝色小水母敲好看</span><div class="topic-detail">种草。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">3000蓝钻去抽400回来哭</span><div class="topic-detail">「依旧大保底😭」伤心。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">开服玩家叹气谁敢信</span><div class="topic-detail">暗示退步。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">登录不上时间显示23年</span><div class="topic-detail">bug。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">奖池爆率低卡顿</span><div class="topic-detail">综合差评。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-05-06</span>
+            <span class="card-stats">
+                <span>观点帖 17 条</span>
+                <span class="card-score-tag">信号分 82.35</span>
+                <span class="card-overview-preview">正面帖以新陨石粉粉好看、线条小狗四级动作、图纸分享和为搭子为主；负面帖以账号丢失、建造困难、溜溜木缺失和红点消不掉为主。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖以新陨石粉粉好看、线条小狗四级动作、图纸分享和为搭子为主；负面帖以账号丢失、建造困难、溜溜木缺失和红点消不掉为主。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">线条小狗衣服太可爱</span><div class="topic-detail">赞美。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">线条小狗多巴胺上衣图纸</span><div class="topic-detail">「超百搭的线条小狗多巴胺上衣来啦✨」分享。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">今日流星雨美丽</span><div class="topic-detail">欣赏。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">建造节童话仙境干了一大半</span><div class="topic-detail">成就。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">Apple ID强制Tap登录进度丢失</span><div class="topic-detail">致客服求助，困扰。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">这让我怎么建</span><div class="topic-detail">困惑。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">没有溜溜木项目图标缺失</span><div class="topic-detail">不满。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">红点大半年消不掉</span><div class="topic-detail">「这个红点都大半年了怎么死活消不掉」抓狂。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-05-05</span>
+            <span class="card-stats">
+                <span>观点帖 19 条</span>
+                <span class="card-score-tag">信号分 66.95</span>
+                <span class="card-overview-preview">正面帖以花朵脖套、线条小狗常驻希望、新头发萌和裤子搭配为主；负面帖以升级券抠、服务器优化、充值不到账和泡泡顶不到为主。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖以花朵脖套、线条小狗常驻希望、新头发萌和裤子搭配为主；负面帖以升级券抠、服务器优化、充值不到账和泡泡顶不到为主。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">线条小狗能不能常驻太萌</span><div class="topic-detail">「线条小狗能不能常驻啊！！！太萌了吧」呐喊。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">超可爱花朵脖套</span><div class="topic-detail">「超可爱花朵脖套」分享。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">我爱你你也爱我对吗</span><div class="topic-detail">表白游戏。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">新头发就这么萌</span><div class="topic-detail">赞美。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">给升级券抠</span><div class="topic-detail">「我不就是肝了一点吗」抱怨。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">一晚上闪退五六次</span><div class="topic-detail">「什么时候优化服务器？」愤怒。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">线条小狗黑到爆</span><div class="topic-detail">「这次线条小狗黑到爆了」暴怒。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">垃圾游戏</span><div class="topic-detail">直接辱骂。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-05-04</span>
+            <span class="card-stats">
+                <span>观点帖 34 条</span>
+                <span class="card-score-tag">信号分 67.91</span>
+                <span class="card-overview-preview">正面帖以粉色城堡建造、好神圣、找搭子和童话茶歇裙为主；负面帖以敏感词、任务卡半年、猫咪受委屈和吐槽抽奖为主。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖以粉色城堡建造、好神圣、找搭子和童话茶歇裙为主；负面帖以敏感词、任务卡半年、猫咪受委屈和吐槽抽奖为主。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">粉色童话风城堡建造节</span><div class="topic-detail">「心动小镇粉色童话风城堡 建造节作品」展示。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">好神圣称赞</span><div class="topic-detail">赞美。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">找搭子萌新可以带</span><div class="topic-detail">招募。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">童话茶歇裙附图纸</span><div class="topic-detail">分享。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">卫生巾算敏感词不满</span><div class="topic-detail">「凭什么卫生巾算敏感词违法词」抗议。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">任务卡半年猫不吃猫粮</span><div class="topic-detail">「这个任务已经卡了半年多了」崩溃。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">建造队模式不能游泳柜子问题</span><div class="topic-detail">bug。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">建筑被恶意全部弄掉</span><div class="topic-detail">愤怒要求官方重视。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-05-03</span>
+            <span class="card-stats">
+                <span>观点帖 27 条</span>
+                <span class="card-score-tag">信号分 72.19</span>
+                <span class="card-overview-preview">正面帖以找搭子、雨林童话、男池裤子夯和20个10级好友为主；负面帖以建造节宣发问题、感觉无聊奖池一坨、承重不足和唱片错失为主。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖以找搭子、雨林童话、男池裤子夯和20个10级好友为主；负面帖以建造节宣发问题、感觉无聊奖池一坨、承重不足和唱片错失为主。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">找搭子大学生闲全天在线</span><div class="topic-detail">「我是大学生很闲随时上线，等待一个可以陪我打卡拍照一起玩的宝宝」活泼。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">拾得雨林赴春日童话</span><div class="topic-detail">诗意。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">男池裤子夯完了都去抽</span><div class="topic-detail">强烈推荐。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">20个10级好友达成</span><div class="topic-detail">成就。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">建造节宣发迷惑</span><div class="topic-detail">质疑。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">没有男生可攻略</span><div class="topic-detail">失望。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">心动越来越不好玩奖池一坨</span><div class="topic-detail">批评。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">承重不足要求统一</span><div class="topic-detail">怒吼。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-05-02</span>
+            <span class="card-stats">
+                <span>观点帖 34 条</span>
+                <span class="card-score-tag">信号分 64.21</span>
+                <span class="card-overview-preview">正面帖以线条小狗雨衣混搭、新蓝钻奖池推荐、沉浸参观小家为主；负面帖以建造节无撤回、玩法无聊建房难、卡池贵和bug多为焦点。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖以线条小狗雨衣混搭、新蓝钻奖池推荐、沉浸参观小家为主；负面帖以建造节无撤回、玩法无聊建房难、卡池贵和bug多为焦点。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">线条小狗雨衣混搭超萌</span><div class="topic-detail">「线条小狗雨衣这样穿超萌的！（混搭版）」分享。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">新蓝钻奖池推荐黄色套</span><div class="topic-detail">「新蓝钻奖池不要错过黄色这套」种草。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">谢谢联名和五一重聚</span><div class="topic-detail">感谢。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">参观小家邀请</span><div class="topic-detail">沉浸。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">玩法无聊建房难家具丑</span><div class="topic-detail">「玩法无聊，建房难，家具丑，衣服难穿搭」全面批评。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">线条小狗卡池太贵</span><div class="topic-detail">「那个什么池抽的也太怎么说呢？太贵了吧？能不能上点免费的？」不满。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">卖号被骗账号丢失</span><div class="topic-detail">悲痛。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">伤手机电池掉电严重</span><div class="topic-detail">「王者逆水寒什么的...都没掉过 就这个心动小镇...电池已经93了」劝退。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-05-01</span>
+            <span class="card-stats">
+                <span>观点帖 44 条</span>
+                <span class="card-score-tag">信号分 75.55</span>
+                <span class="card-overview-preview">正面帖以线条小狗穿搭、小骨头头套萌、黄金周回忆和免费衣服香为主；负面帖以种地赚钱如坐牢、小狗互动缺失、账号丢失和被毁号为主。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖以线条小狗穿搭、小骨头头套萌、黄金周回忆和免费衣服香为主；负面帖以种地赚钱如坐牢、小狗互动缺失、账号丢失和被毁号为主。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">线条小狗衣服免费香</span><div class="topic-detail">「四种线条小狗衣服你最喜欢哪个？还是免费的香 嘿嘿」炫耀。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">男装小骨头头套太萌</span><div class="topic-detail">赞美。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">捉迷藏期待变身</span><div class="topic-detail">兴奋。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">美美出片分享</span><div class="topic-detail">穿搭拍照。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">种一星期地卖三十万如坐牢</span><div class="topic-detail">「跟坐牢一样」抱怨赚钱慢。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">苹果ID账号找不回</span><div class="topic-detail">丢失。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">号没了或被毁号</span><div class="topic-detail">气死。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">一个人玩无聊</span><div class="topic-detail">孤独。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-04-30</span>
+            <span class="card-stats">
+                <span>观点帖 40 条</span>
+                <span class="card-score-tag">信号分 75.2</span>
+                <span class="card-overview-preview">正面帖以线条小狗联动穿搭萌爆、爱丽丝密室惊艳、森林岛拍照和雨衣萌为主；负面帖以抽取明信片恶心、保底不出和爆率暗改为焦点。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖以线条小狗联动穿搭萌爆、爱丽丝密室惊艳、森林岛拍照和雨衣萌为主；负面帖以抽取明信片恶心、保底不出和爆率暗改为焦点。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">线条小狗联动太萌啦</span><div class="topic-detail">「线条小狗！！男装女装都好萌！！」以及「这两套雨衣也太萌了吧！！」疯狂种草。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">爱丽丝主题密室如童话</span><div class="topic-detail">「太惊艳了，爱丽丝主题的密室，落下去的一瞬间仿佛进入童话世界」赞美。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">男装裤子背面销冠</span><div class="topic-detail">「谁懂！！男装裤子背面让人眼前一亮！销冠来的✨」惊叹。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">小金毛可爱宝宝</span><div class="topic-detail">宠物。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">线条小狗明信片爆率恶心</span><div class="topic-detail">「抽了150块钱的才买全一个烂家具奖池...多少人都退游了，急着割韭菜」暴怒。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">保底不出暗改爆率</span><div class="topic-detail">「额。心动小镇你是不是又偷偷改爆率...趁着五一狠狠圈玩家的钱呗」质疑。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">全是表情包气死</span><div class="topic-detail">愤怒。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">千辛万苦下回来被删</span><div class="topic-detail">被删崩溃。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-04-29</span>
+            <span class="card-stats">
+                <span>观点帖 16 条</span>
+                <span class="card-score-tag">信号分 65.94</span>
+                <span class="card-overview-preview">正面帖以叶罗丽草莓裙、贴贴你、夜景美和绘画衣服为主；负面帖以三个半小时搞一件、家园镂空、100条鱼无五星和卡屏闪屏为主。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖以叶罗丽草莓裙、贴贴你、夜景美和绘画衣服为主；负面帖以三个半小时搞一件、家园镂空、100条鱼无五星和卡屏闪屏为主。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">叶罗丽公主草莓裙子</span><div class="topic-detail">「叶罗丽公主喜欢吃草莓🍓做了1个草莓裙子」创作。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">小镇夜景好美</span><div class="topic-detail">赞叹。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">中奖概率倍儿高</span><div class="topic-detail">推荐。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">绘制巴宝莉套装裙</span><div class="topic-detail">手作。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">完成一件耗时三个半小时</span><div class="topic-detail">抱怨耗时。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">家园镂空只剩鼓架子</span><div class="topic-detail">bug。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">同一条鱼钓一百次没五星</span><div class="topic-detail">崩溃。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">连续几天卡屏闪屏黑屏</span><div class="topic-detail">痛苦。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-04-28</span>
+            <span class="card-stats">
+                <span>观点帖 11 条</span>
+                <span class="card-score-tag">信号分 83.82</span>
+                <span class="card-overview-preview">正面帖以河狸杯组队、隐藏成就、小摩托搭配和可爱为主；负面帖以文件解析错误、四个座位无人、做饭方式难和无聊为主。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖以河狸杯组队、隐藏成就、小摩托搭配和可爱为主；负面帖以文件解析错误、四个座位无人、做饭方式难和无聊为主。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">河狸杯建造节摇人</span><div class="topic-detail">「队伍：米奇妙妙屋...佛系不内卷，新手友好」热情。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">首冲小摩托好好看</span><div class="topic-detail">「我再也不遗忘你啦小摩托」重新喜爱。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">建造节3个隐藏成就</span><div class="topic-detail">别错过。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">太好玩睡不着</span><div class="topic-detail">调侃沉迷。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">手机文件解析错误无法玩</span><div class="topic-detail">「官方！救我！」求助。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">四个座位凑不齐两人</span><div class="topic-detail">孤单。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">改下做饭方式</span><div class="topic-detail">请求。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">不氪金只有等级是动力</span><div class="topic-detail">无聊批评。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-04-27</span>
+            <span class="card-stats">
+                <span>观点帖 14 条</span>
+                <span class="card-score-tag">信号分 84.21</span>
+                <span class="card-overview-preview">正面帖以花廊洒水心动、发现好游戏推荐、久违宁静和跑酷玩法为主；负面帖仅有三条：委托奖励减少、误闯天家隐晦失望。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖以花廊洒水心动、发现好游戏推荐、久违宁静和跑酷玩法为主；负面帖仅有三条：委托奖励减少、误闯天家隐晦失望。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">久违宁静与治愈沉迷</span><div class="topic-detail">长文「我找到了久违的宁静...有人会为我伴奏」极度深情，描绘游戏美好。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">跑酷有新意颜色搭配好看</span><div class="topic-detail">赞赏。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">河狸杯组队找零氪伙伴</span><div class="topic-detail">组建。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">误闯天家搞笑互动</span><div class="topic-detail">趣味。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">委托积极做只获一张订购卷</span><div class="topic-detail">「这个月我积极的做委托，但就获得一张订购卷，之前都能获得至少三张」失望。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">误闯天家劝余放下砂</span><div class="topic-detail">隐晦失落。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-04-26</span>
+            <span class="card-stats">
+                <span>观点帖 28 条</span>
+                <span class="card-score-tag">信号分 76.75</span>
+                <span class="card-overview-preview">正面帖以心动小镇爱心、新发型可爱、钓鱼毕业和建造节组队为主；负面帖以社交越位交友难受、贵宾犬不掉落、建材限制和闪退为主。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖以心动小镇爱心、新发型可爱、钓鱼毕业和建造节组队为主；负面帖以社交越位交友难受、贵宾犬不掉落、建材限制和闪退为主。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">新发型太可爱期待录视频</span><div class="topic-detail">「太爱这个新头发了，小镇什么时候能出录视频的功能」表白。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">我家第一次这么漂亮</span><div class="topic-detail">「这是我目前最喜欢的也最成功的一次建造了」喜悦。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">钓鱼捕虫全毕业</span><div class="topic-detail">「和朋友们大肝特肝」庆祝。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">免费线条小狗雨衣真香</span><div class="topic-detail">满意。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">好友被抢感觉像失恋</span><div class="topic-detail">「感觉就像老婆人跑了一样难受」社交痛苦。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">新衣服几天刷不到</span><div class="topic-detail">「我请问呢...我怎么还是没刷到！」烦躁。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">建材限制不够建</span><div class="topic-detail">「求求了，把限制再调大一些吧」恳求。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">卡大闪退</span><div class="topic-detail">频繁。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-04-25</span>
+            <span class="card-stats">
+                <span>观点帖 32 条</span>
+                <span class="card-score-tag">信号分 68.12</span>
+                <span class="card-overview-preview">正面帖以好心情、单抽出奇迹、拍照新功能和零氪必看为主；负面帖以参加不了激励、迷惑人借号、浇水bug和闪退为主。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖以好心情、单抽出奇迹、拍照新功能和零氪必看为主；负面帖以参加不了激励、迷惑人借号、浇水bug和闪退为主。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">单抽出奇迹运气好</span><div class="topic-detail">炫耀。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">裙子和头发好好看</span><div class="topic-detail">「让我看看是谁还没拿到呢」种草。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">零氪必看免费线条小狗服饰</span><div class="topic-detail">福利分享。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">体验相机新功能拍照</span><div class="topic-detail">邀请。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">参加不了激励活动官方不理</span><div class="topic-detail">无助。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">借号后骚扰好友删人</span><div class="topic-detail">被坑。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">浇水无数次不显示bug</span><div class="topic-detail">卡新手。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">账号丢失变新号</span><div class="topic-detail">哭泣。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-04-24</span>
+            <span class="card-stats">
+                <span>观点帖 12 条</span>
+                <span class="card-score-tag">信号分 67.83</span>
+                <span class="card-overview-preview">正面帖以线条小狗露营、综艺官宣、家里少爷猫和零氪穿搭为主；负面帖以返场衣服要红钻、宠物挡种地和隐藏物品难找为主。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖以线条小狗露营、综艺官宣、家里少爷猫和零氪穿搭为主；负面帖以返场衣服要红钻、宠物挡种地和隐藏物品难找为主。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">和线条小狗去露营好心情</span><div class="topic-detail">轻松。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">金枪鱼帝王蟹喂猫少爷命</span><div class="topic-detail">养猫趣事。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">零氪穿搭滑滑板</span><div class="topic-detail">分享。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">希望官方多听意见想一直玩</span><div class="topic-detail">表白。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">返场衣服到货还要红钻</span><div class="topic-detail">「也妹人告诉我啊...这个返场的衣服怎么到货了还要红钻啊」被坑。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">宠物挡种地问题没优化</span><div class="topic-detail">质疑。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">藏犄角旮旯找半小时</span><div class="topic-detail">气恼。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">之前玩的号没了</span><div class="topic-detail">丢失。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-04-23</span>
+            <span class="card-stats">
+                <span>观点帖 21 条</span>
+                <span class="card-score-tag">信号分 76.52</span>
+                <span class="card-overview-preview">正面帖以好萌好萌、免费时装可爱、动作可爱和流星雨攻略为主；负面帖以庆典收集箱消失、卡死做饭、分辨率和金橡果赠礼窗口问题为主。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖以好萌好萌、免费时装可爱、动作可爱和流星雨攻略为主；负面帖以庆典收集箱消失、卡死做饭、分辨率和金橡果赠礼窗口问题为主。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">免费丸子头超萌</span><div class="topic-detail">「免费的新发型 超萌的丸子头拿下了吗」开心。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">囤食材准备线条小狗联动</span><div class="topic-detail">积极。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">家里来天鹅开心</span><div class="topic-detail">惊喜。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">位置播报与流星雨攻略</span><div class="topic-detail">服务。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">庆典收集箱消失</span><div class="topic-detail">质问。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">做饭卡死损失食材</span><div class="topic-detail">「能不能不要在做饭的时候卡死...万能食材和神奇调料很贵的」心痛。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">分辨率黑边问题</span><div class="topic-detail">抱怨。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">泡面油头设计丑</span><div class="topic-detail">讽刺。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-04-22</span>
+            <span class="card-stats">
+                <span>观点帖 17 条</span>
+                <span class="card-score-tag">信号分 54.35</span>
+                <span class="card-overview-preview">正面帖以浇水群、穿搭拿下、建房街区和青苹果背包为主；负面帖涉及精神遭奇葩玩家、动物AI问题、蓝图套用bug和种植bug。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖以浇水群、穿搭拿下、建房街区和青苹果背包为主；负面帖涉及精神遭奇葩玩家、动物AI问题、蓝图套用bug和种植bug。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">浇水群滴滴友好互助</span><div class="topic-detail">「每天撒彩虹花束浇花浇地...群里没有什么规矩，都是友好交流」招募。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">穿搭拿下保底拿下小镇拿下</span><div class="topic-detail">兴奋。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">好莱坞影城街区建造</span><div class="topic-detail">创意。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">新衣服拽拽的</span><div class="topic-detail">喜欢。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">游戏内奇葩玩家和精神状态</span><div class="topic-detail">吐槽遇白嫖党、偷车党、找对象等，表示无奈。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">动物AI改版后不动</span><div class="topic-detail">「动物现在在花地不动了」批评AI。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">蓝图无法套用建材已有</span><div class="topic-detail">bug。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">黑孔雀爆率低</span><div class="topic-detail">难出。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-04-21</span>
+            <span class="card-stats">
+                <span>观点帖 21 条</span>
+                <span class="card-score-tag">信号分 72.14</span>
+                <span class="card-overview-preview">正面帖以布兰克同人、大蘑菇好看、宅很久和羁绊抢凳子活动为主；负面帖以礼物消失、玩家恶意关灯、自定义服装券满和账号问题为主。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖以布兰克同人、大蘑菇好看、宅很久和羁绊抢凳子活动为主；负面帖以礼物消失、玩家恶意关灯、自定义服装券满和账号问题为主。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">布兰克反派AU创作</span><div class="topic-detail">「我决定为《心动小镇》的平行宇宙创作一个反派版的布兰克。」热情同人。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">大蘑菇好看与天空绝配</span><div class="topic-detail">「好看鼠了~」赞美。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">可以在心动小镇宅很久</span><div class="topic-detail">沉浸。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">抢凳子活动分享羁绊</span><div class="topic-detail">社交快乐。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">两个礼物只收到一个</span><div class="topic-detail">「为什么两个礼物我只收到了一个？！！」不满。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">半夜被恶意关灯</span><div class="topic-detail">「遇大半夜4点到我家把我十几个灯全关了」愤怒避雷。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">自定义服装券不够</span><div class="topic-detail">「再多增加20个券吧。自定义已经满了。」创作受阻。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">进不去要求答复</span><div class="topic-detail">「为什么我进不去？这是一件很严肃的事」严肃。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-04-20</span>
+            <span class="card-stats">
+                <span>观点帖 18 条</span>
+                <span class="card-score-tag">信号分 59.44</span>
+                <span class="card-overview-preview">正面帖以组队找泡泡、换造型开心、新衣服一起穿和温馨小院为主；负面帖以卡级卡爱好券、好友互动限制、猎奇玩家和二楼家具吐槽为主。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖以组队找泡泡、换造型开心、新衣服一起穿和温馨小院为主；负面帖以卡级卡爱好券、好友互动限制、猎奇玩家和二楼家具吐槽为主。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">组队找泡泡快乐不迷路</span><div class="topic-detail">「一个人找泡泡的孤单，我懂~」邀请组队。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">换造型好开心</span><div class="topic-detail">穿搭喜悦。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">新衣服当然要一起穿</span><div class="topic-detail">分享。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">18块地温馨小院</span><div class="topic-detail">展示。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">卡爱好券参加不了活动</span><div class="topic-detail">「卡级卡爱好券是真难受，好多活动还参加不了」憋屈。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">退游出号</span><div class="topic-detail">心灰意冷。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">二楼家具被封印两年</span><div class="topic-detail">调侃不满。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">垃圾游戏账号删除</span><div class="topic-detail">强烈谴责。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-04-19</span>
+            <span class="card-stats">
+                <span>观点帖 27 条</span>
+                <span class="card-score-tag">信号分 74.04</span>
+                <span class="card-overview-preview">正面帖以泼水节快乐、露肩装喜欢、友谊甜甜和治愈一天为主；负面帖以头发抽奖保底、孤独无人玩、宠物卡位做饭和游戏bug众为主。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖以泼水节快乐、露肩装喜欢、友谊甜甜和治愈一天为主；负面帖以头发抽奖保底、孤独无人玩、宠物卡位做饭和游戏bug众为主。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">泼水节快乐清凉</span><div class="topic-detail">「让清凉水花撞个满怀，把烦恼统统冲散～」推广活动。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">露肩装很喜欢</span><div class="topic-detail">穿搭。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">收到货啦非常喜欢</span><div class="topic-detail">周边好评。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">友谊甜甜的像颗糖</span><div class="topic-detail">甜蜜。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">头发总是保底</span><div class="topic-detail">「头发为什么总是保底每次要抽到最后才有」烦躁。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">孤单没人玩</span><div class="topic-detail">「在小镇没人陪我玩好孤单😭」求陪伴。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">羊驼挤饭bug</span><div class="topic-detail">「心动小镇傻子是不是bug...那个羊驼非得挤我饭糊好几回」抱怨。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">抽卡爆率低不信任</span><div class="topic-detail">「我真傻，真的...心动小镇我再也不会相信你了」失望。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-04-18</span>
+            <span class="card-stats">
+                <span>观点帖 30 条</span>
+                <span class="card-score-tag">信号分 63.77</span>
+                <span class="card-overview-preview">正面帖以顶级过肺、抹茶城堡、四叶草套装和新衣服帅气为主；负面帖以账号丢失、登录故障、抽卡大保底和悬着心死为主。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖以顶级过肺、抹茶城堡、四叶草套装和新衣服帅气为主；负面帖以账号丢失、登录故障、抽卡大保底和悬着心死为主。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">顶级过肺流行梗赞美</span><div class="topic-detail">用梗表达极致赞美。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">抹茶色森系城堡</span><div class="topic-detail">「抹茶色系的森系城堡 对建材要求不高哦」分享。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">四叶草套装真美</span><div class="topic-detail">「跟闺蜜扭一个」搭配。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">厨神成就88900道菜</span><div class="topic-detail">自豪。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">账号丢失与卡退误删</span><div class="topic-detail">「心动小镇账号没了...卡退然后给我弹出一个卸载...我的好友和衣服啊」悲痛。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">抽卡次次大保底</span><div class="topic-detail">「不是吧 心动小镇你每次都是这样子 这几乎都是大保底了吧」无力。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">连续6周刷不到样板间</span><div class="topic-detail">「悬着的心终于死了！」绝望。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">植物承重力不够</span><div class="topic-detail">抱怨。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-04-17</span>
+            <span class="card-stats">
+                <span>观点帖 41 条</span>
+                <span class="card-score-tag">信号分 71.07</span>
+                <span class="card-overview-preview">正面帖以史上最萌、服装泡泡、奶牛包和治愈感为主；负面帖以种菜宠物卡回退、bug多黑屏、更新卡顿和建房子卡死为主。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖以史上最萌、服装泡泡、奶牛包和治愈感为主；负面帖以种菜宠物卡回退、bug多黑屏、更新卡顿和建房子卡死为主。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">心动小镇待着莫名心安</span><div class="topic-detail">「不用赶任务、不用比战力...坐在长椅上看着天空慢慢变色...感觉现实里的疲惫一下子都没了」深度治愈。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">服装店牛奶包太可爱</span><div class="topic-detail">夸奖。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">新头像怪好看</span><div class="topic-detail">「心动小镇这个头像还怪好看嘞」可爱。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">安妮我们喜欢</span><div class="topic-detail">表白角色。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">bug多黑屏错过稀有鸟</span><div class="topic-detail">「今天雨天想着刷五星限定鸟呢...结果在触发额外鸟的时候给我卡了，并且黑屏了！！」气死。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">更新后很卡甚至死机</span><div class="topic-detail">「这次更新完好卡啊，今天我手机已经卡三次了，第一次手机直接死机了」抱怨。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">猫狗卡位设定不改</span><div class="topic-detail">「猫狗会卡位这个设定不能改改吗？」请求。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">越更新越垃圾卡</span><div class="topic-detail">「能不能用点心的更新，越更新越垃圾卡卡卡！」愤怒。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-04-16</span>
+            <span class="card-stats">
+                <span>观点帖 55 条</span>
+                <span class="card-score-tag">信号分 71.25</span>
+                <span class="card-overview-preview">正面帖大幅超过负面帖，新服装、奶牛背包、幸运草套装和免费泡泡位置攻略引发热议；负面帖主要抱怨更新后卡顿、种菜又被宠物卡、点赞改动麻烦。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖大幅超过负面帖，新服装、奶牛背包、幸运草套装和免费泡泡位置攻略引发热议；负面帖主要抱怨更新后卡顿、种菜又被宠物卡、点赞改动麻烦。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">新服装太仙与奶牛背包萌</span><div class="topic-detail">「新服装也太仙了！」「新上的包包太萌了吧」以及免费奶牛背包获好评。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">幸运草套装特可爱</span><div class="topic-detail">「这次更新真的好像夸夸心动出的这个幸运草套装特可爱。」称赞。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">新动物赠礼摆件灯可爱</span><div class="topic-detail">「太可爱啦！新动物赠礼」热情。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">一起钓鱼吧开事件招募</span><div class="topic-detail">组队活动。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">更新后种菜又被宠物卡</span><div class="topic-detail">「☹️☹️更新后，种菜又会被宠物卡，不能成功播种」沮丧。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">点赞改版太麻烦</span><div class="topic-detail">「这个点赞能不能改回来啊，也太麻烦了吧」强烈不满。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">更新倒退改回来种地宠物穿插</span><div class="topic-detail">「666，怎么又改回来了《种地宠物又穿插》」讽刺。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">卡顿与安装失败</span><div class="topic-detail">「老是卡顿」「老是安装失败」集体吐槽。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-04-15</span>
+            <span class="card-stats">
+                <span>观点帖 17 条</span>
+                <span class="card-score-tag">信号分 59.82</span>
+                <span class="card-overview-preview">正面帖以心动萌物跳舞、蘑菇屿春日来信、氪金换实体周边和签到活动更新为主；负面帖以圈钱心思、奖池机制不改、钓鱼百次无五星和恶意白嫖为主。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖以心动萌物跳舞、蘑菇屿春日来信、氪金换实体周边和签到活动更新为主；负面帖以圈钱心思、奖池机制不改、钓鱼百次无五星和恶意白嫖为主。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">心动萌物跳舞好萌好可爱</span><div class="topic-detail">「好萌好好看！」赞赏。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">氪金换来实体周边惊喜</span><div class="topic-detail">「玩心动小镇氪的金，居然换来实体周边了！」兴奋。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">签到活动更新提醒</span><div class="topic-detail">分享。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">灯光下人物有多美</span><div class="topic-detail">展示。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">圈钱心思分一点来这？</span><div class="topic-detail">指责圈钱。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">奖池机制没改抽不到</span><div class="topic-detail">「抽也抽不到，充钱现在充的虽然不多吧，但你这么想就不对了吧」不满。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">蓝色欧洲鳌虾钓崩溃</span><div class="topic-detail">「花了花了一个多小时 花了30个鱼尾 十几个香水...」求改。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">恶意白嫖党避雷</span><div class="topic-detail">强烈谴责蹭鱼尾。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-04-14</span>
+            <span class="card-stats">
+                <span>观点帖 17 条</span>
+                <span class="card-score-tag">信号分 81.18</span>
+                <span class="card-overview-preview">正面帖以泼水节祝福、满眼是你、乐器回坑和自由建造为主；负面帖以寄养无法放回、更新账号丢失和家具错位为主。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖以泼水节祝福、满眼是你、乐器回坑和自由建造为主；负面帖以寄养无法放回、更新账号丢失和家具错位为主。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">泼水节祝福与清凉</span><div class="topic-detail">「泼水节的水，是祝福，是清凉，是人间最热烈又最温柔的仪式。」诗意赞美。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">回坑为了玩乐器</span><div class="topic-detail">「回坑心动小镇就是为了玩上这一口游戏里的乐器🥳」明确目标。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">全屏女鹅美到当屏保</span><div class="topic-detail">分享美图。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">雨林隐秘之门</span><div class="topic-detail">探索。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">寄养无法取回猫</span><div class="topic-detail">「能不能不要搞寄养，出个可以退回...放不下拿不出啊」求改。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">更新后账号丢失变新号</span><div class="topic-detail">「因为老号码已经没有用了...充了钱的咋办啊？」大哭。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">家具全在背包家里空</span><div class="topic-detail">「翻哪一个家都是空的，都在背包里」混乱。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-04-13</span>
+            <span class="card-stats">
+                <span>观点帖 25 条</span>
+                <span class="card-score-tag">信号分 74.6</span>
+                <span class="card-overview-preview">正面帖以新发型一抽喜爱、衣服跳舞好仙、珍奇鞋子优雅和双倍蓝钻兴奋为主；负面帖以登录异常、猫卡位不离开和账号暗调抽奖等严重抱怨为主。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖以新发型一抽喜爱、衣服跳舞好仙、珍奇鞋子优雅和双倍蓝钻兴奋为主；负面帖以登录异常、猫卡位不离开和账号暗调抽奖等严重抱怨为主。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">一抽新发型好好看</span><div class="topic-detail">「一抽抽到了一个新发型，好好看！你们也快去抽吧！」安利。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">衣服跳舞好仙</span><div class="topic-detail">「这衣服！真的好适合跳舞卡点啊！好仙！」推荐。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">双倍蓝钻一定要上线</span><div class="topic-detail">「什么！居然有双倍蓝钻！」狂喜。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">公爵面饰与泼水节衣服完美适配</span><div class="topic-detail">搭配。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">登录异常中午登不上</span><div class="topic-detail">反复出现。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">猫卡位趴1小时不走</span><div class="topic-detail">「咋还越来越严重了呢」无奈。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">暗调奖池春节不如国外</span><div class="topic-detail">长文控诉崇洋媚外、修bug慢、骗氪，呼吁退款。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">掐我脖没爱了</span><div class="topic-detail">伤心。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-04-12</span>
+            <span class="card-stats">
+                <span>观点帖 23 条</span>
+                <span class="card-score-tag">信号分 65.52</span>
+                <span class="card-overview-preview">正面帖以可爱崽崽、绝美樱花树、春天拍照和建造节投票为主；负面帖以AI反讽、飞行载具缺失、玩家骂人和作物浇水bug为主。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖以可爱崽崽、绝美樱花树、春天拍照和建造节投票为主；负面帖以AI反讽、飞行载具缺失、玩家骂人和作物浇水bug为主。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">崽崽最可爱</span><div class="topic-detail">「我的崽崽最可爱⚈₃⚈」炫耀。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">绝美樱花树</span><div class="topic-detail">赞美。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">布兰克生日祝福</span><div class="topic-detail">温暖。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">落日余晖沙滩派对</span><div class="topic-detail">美景。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">没飞行载具腻烦</span><div class="topic-detail">老玩家抱怨缺乏飞行载具，跑图腻。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">浇水任务怎么浇都无法完成</span><div class="topic-detail">任务卡死。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">衣柜真该优化了</span><div class="topic-detail">批评。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">还我账号</span><div class="topic-detail">账号丢失强烈要求。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-04-11</span>
+            <span class="card-stats">
+                <span>观点帖 56 条</span>
+                <span class="card-score-tag">信号分 72.75</span>
+                <span class="card-overview-preview">正面帖围绕泼水节服装、新发型和穿搭分享；负面帖涉及账号丢失、金色家具花费巨大、头发概率低和安装失败。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖围绕泼水节服装、新发型和穿搭分享；负面帖涉及账号丢失、金色家具花费巨大、头发概率低和安装失败。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">泼水节衣服美美哒</span><div class="topic-detail">「泼水节的衣服好美🥰」询问颜色。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">裙子美到犯规后背绝了</span><div class="topic-detail">极度赞美服装设计。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">新服饰可以好友赠送省蓝钻</span><div class="topic-detail">「又省蓝钻了」高兴。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">再爱心动小镇一次</span><div class="topic-detail">回归爱。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">账号丢失与安装失败</span><div class="topic-detail">「我的账号丢了」「一直安装不了」基础设施问题。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">350万抽金色家具才一点点</span><div class="topic-detail">「花了350万才抽出一点点金色家具」自嘲小丑。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">头发每次都要抽完才出</span><div class="topic-detail">「求求小镇官方将头发的概率提升一下」哀求。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">圈钱指责</span><div class="topic-detail">「圈钱也不是这样圈的」愤怒。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-04-10</span>
+            <span class="card-stats">
+                <span>观点帖 11 条</span>
+                <span class="card-score-tag">信号分 85.64</span>
+                <span class="card-overview-preview">正面帖以拍照技巧、每日穿搭、疯帽子庄园教程和生日祝福为主；负面帖只有三条：注销告别、订购券被躲和邮箱物品消失。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖以拍照技巧、每日穿搭、疯帽子庄园教程和生日祝福为主；负面帖只有三条：注销告别、订购券被躲和邮箱物品消失。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">拍照亮度最低氛围感美照</span><div class="topic-detail">分享技巧。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">每天把崽崽打扮漂亮才是目的</span><div class="topic-detail">穿搭。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">一缕阳光献给布兰克生日</span><div class="topic-detail">祝福。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">黄金屋毕业建议</span><div class="topic-detail">分享。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">决定注销告别感谢</span><div class="topic-detail">「犹豫很久还是决定把它注销了 还是谢谢心动吧」遗憾退场。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">找人订购券就跑</span><div class="topic-detail">社交恐惧。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">邮箱东西领取后丢失</span><div class="topic-detail">任务无法完成。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-04-09</span>
+            <span class="card-stats">
+                <span>观点帖 22 条</span>
+                <span class="card-score-tag">信号分 73.82</span>
+                <span class="card-overview-preview">正面帖以男池第一个十连、挂机小动物包围、一起肝潮流季和兑换码分享为主；负面帖以宠物捣乱做饭、抽卡概率低重复率高、地图失灵和账号丢失为主。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖以男池第一个十连、挂机小动物包围、一起肝潮流季和兑换码分享为主；负面帖以宠物捣乱做饭、抽卡概率低重复率高、地图失灵和账号丢失为主。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">男池第一个十连想哭</span><div class="topic-detail">「终于对我好点了啊」感恩。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">挂机被小动物包围治愈</span><div class="topic-detail">「每次电脑挂机，等在看游戏的时候，总是被小动物包围！~瞬间治愈！」开心。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">组织肝潮流季撒彩虹花束</span><div class="topic-detail">热心组织。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">泼水节服装兑换码分享</span><div class="topic-detail">攻略。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">三锅菜一起糊掉宠物逃逸</span><div class="topic-detail">「三锅菜一起糊掉，肇事猫之一还现场逃逸」反讽。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">充值很多抽卡大出血重复</span><div class="topic-detail">「充了好多钱...想死，今天直接大出血」哭穷。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">小镇地图没法用了</span><div class="topic-detail">功能失效。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">周卡扣蓝钻强制续费</span><div class="topic-detail">「为什么充周卡官方要扣我的蓝钻,非要续费之后才能继续发放...太气人了」愤怒。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-04-08</span>
+            <span class="card-stats">
+                <span>观点帖 20 条</span>
+                <span class="card-score-tag">信号分 68.75</span>
+                <span class="card-overview-preview">正面帖以运气最好的一次、紫色系爱好、泼水节服装蓝钻购买和小木屋为主；负面帖则以宠物卡锅、隐藏概率低、建材承重和圈钱指责为主。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖以运气最好的一次、紫色系爱好、泼水节服装蓝钻购买和小木屋为主；负面帖则以宠物卡锅、隐藏概率低、建材承重和圈钱指责为主。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">20抽出头发15抽两金超级欧</span><div class="topic-detail">「女卡池20抽出头发了。男卡池15抽两金。建材15抽两金。不抽了，我收手了。开始攒票🥰」开心收手。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">泼水节衣服蓝钻购买超好看</span><div class="topic-detail">「泼水节要来啦~衣服超好看，居然只需要蓝钻！」惊喜。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">青苹果背包适合夏天</span><div class="topic-detail">「青苹果背包」可爱。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">小木屋心动max</span><div class="topic-detail">喜爱小木屋。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">宠物卡锅做饭糊锅愤怒</span><div class="topic-detail">「还要反反复复多少次搞得我糊锅」激烈抱怨。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">建筑承重限制改不了多少</span><div class="topic-detail">「该思这承重吃了翔改也改不了多少」爆粗。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">官方概率低种3000多没五星</span><div class="topic-detail">「种3000多个了，一个五星都没有」失望。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">制作团队没有心</span><div class="topic-detail">直接谴责。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-04-07</span>
+            <span class="card-stats">
+                <span>观点帖 30 条</span>
+                <span class="card-score-tag">信号分 72.33</span>
+                <span class="card-overview-preview">正面帖以春日漫游、新帽子、小猫上头和抢凳子活动为主；负面帖以会员剩余天数不符、旋律回响任务不触发和宠物飞天bug为主。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖以春日漫游、新帽子、小猫上头和抢凳子活动为主；负面帖以会员剩余天数不符、旋律回响任务不触发和宠物飞天bug为主。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">小猫主动上头受宠若惊</span><div class="topic-detail">「今天小老虎主动跳到我的头上，受宠若惊啊」惊喜。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">15票根绑带蕾丝好看</span><div class="topic-detail">「什么？15票根绑带蕾丝这么好看的吗？」值。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">过山车体验活动邀请</span><div class="topic-detail">「超级过山车体验活动欢迎大家游玩」宣传。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">翻锅邀请宝宝们</span><div class="topic-detail">轻松社交。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">30天会员剩余23天15小时</span><div class="topic-detail">「我刚刚买的30天会员，为什么是剩余23天15小时？」质疑欺诈。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">旋律回响任务不触发 安妮无音乐商店</span><div class="topic-detail">卡任务。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">猫咪飞天bug</span><div class="topic-detail">「头顶猫咪飞天了」搞笑但不满。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">种植物堆叠上限太低</span><div class="topic-detail">「每样200哪够！增加到1000一组！」怒吼。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-04-06</span>
+            <span class="card-stats">
+                <span>观点帖 78 条</span>
+                <span class="card-score-tag">信号分 75.41</span>
+                <span class="card-overview-preview">正面帖以春日互赞、轻松愉快、画面氛围感和微氪穿搭为主；负面帖以抽奖保底、好友不可见、兔子头套需求大和宠物穿模为主。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖以春日互赞、轻松愉快、画面氛围感和微氪穿搭为主；负面帖以抽奖保底、好友不可见、兔子头套需求大和宠物穿模为主。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">春日互赞与氛围感</span><div class="topic-detail">「轻松愉快的一天」「氛围感拿捏」享受春天。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">拥有上衣等于少女暴君与骑士</span><div class="topic-detail">赞美服装百搭。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">微氪穿搭喜欢表演者吊带</span><div class="topic-detail">「好喜欢这个表演者吊带背心」安利。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">世界不能没有你</span><div class="topic-detail">深情告白。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">抽卡重复率高保底</span><div class="topic-detail">「这概率是没改吗？才抽了4个十连，就每次重复一半」不满。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">好友不可见问题</span><div class="topic-detail">「好友居然看不见吗」困惑。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">兔子头套兑换票根需求大</span><div class="topic-detail">「兑换到的票根需求太多了，抽的话感觉有点像大海捞针」吐槽。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">小镇越来越卡手机发热</span><div class="topic-detail">「小镇，你用的是土豆服务器吗？给我手机热的都高温显示了」对比洛克王国，讥讽。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-04-05</span>
+            <span class="card-stats">
+                <span>观点帖 65 条</span>
+                <span class="card-score-tag">信号分 70.65</span>
+                <span class="card-overview-preview">正面帖以春日漫游、便利店收获、赞礼帽免费和新奖池单品为主；负面帖以霸王龙卡bug、账号解绑、抽不到部件和宠物穿模为主。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖以春日漫游、便利店收获、赞礼帽免费和新奖池单品为主；负面帖以霸王龙卡bug、账号解绑、抽不到部件和宠物穿模为主。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">便利店全部拿下美滋滋</span><div class="topic-detail">「我看很多宝子都刷到这个了，我今天也刷到了，也是全部拿下了，美滋滋」收获喜悦。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">免费的赞礼帽推荐</span><div class="topic-detail">「这个免费的赞礼帽千万不要错过」福利宣传。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">新奖池单品太好看</span><div class="topic-detail">「新奖池 这些单品也太好看啦！错过拍大腿！」强力种草。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">樱花树下出片</span><div class="topic-detail">「在樱花树下画画还挺出片的」拍照推荐。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">账号解绑求官方还号</span><div class="topic-detail">「不小心把号解绑了，求求官方把号还给我...我玩了一年多的号😭」悲伤。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">连续6周刷不到新样板间</span><div class="topic-detail">「连续6周刷不到新的样板间...跟客服多次反馈，一点改变都没有？」无奈。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">新鞋无内增高避雷</span><div class="topic-detail">「【避雷】喜欢搞身高差的不用来了...鞋底会陷下去一块！相当于没增高」受骗感。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">观鸟被踢出事件</span><div class="topic-detail">「刚才去参加观鸟事件...拍了两张，她把我t出了事件...奖励一个都没领到！」愤怒挂人。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-04-04</span>
+            <span class="card-stats">
+                <span>观点帖 96 条</span>
+                <span class="card-score-tag">信号分 72.25</span>
+                <span class="card-overview-preview">正面帖数量高涨，围绕新奖池兔子互动、五星炫耀、可爱无边和爱意表达；负面帖涉及新展演池试水、150抽出裙子值吗、bug和避雷。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖数量高涨，围绕新奖池兔子互动、五星炫耀、可爱无边和爱意表达；负面帖涉及新展演池试水、150抽出裙子值吗、bug和避雷。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">新奖池吹小号兔子互动</span><div class="topic-detail">「新奖池这个吹小号的兔子可以互动，真的可以吹小号」发现隐藏互动，狂喜。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">一次五星纯炫耀</span><div class="topic-detail">「一次五星 纯炫耀不解释」得意。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">第100抽保底出彩庆祝</span><div class="topic-detail">「普天同庆！第100抽终于保底出彩了！👏😭」苦尽甘来。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">新奖池头发好萌</span><div class="topic-detail">「新奖池的头发好萌!!!」赞美。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">150抽才出裙子质疑值吗</span><div class="topic-detail">「150抽才出的裙子！值吗？」暗示昂贵。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">54抽2金1彩不满</span><div class="topic-detail">「心动小镇活不起了？ 54抽2个金一个彩，什么意思？」讽刺。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">建房bug多次重建客服不理</span><div class="topic-detail">「卡好几次bug 也重建了，建了好几个小时，客服也一直不回复」无助。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">事件虫174才出五星离谱</span><div class="topic-detail">「第一次事件虫174才出五星…好离谱」心累。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-04-03</span>
+            <span class="card-stats">
+                <span>观点帖 54 条</span>
+                <span class="card-score-tag">信号分 81.44</span>
+                <span class="card-overview-preview">正面帖大幅领先，以春日漫游、热爱坚守、樱花树和星星家族为主；负面帖极少，只有等级开放催促、恶意玩家和保底愤怒。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖大幅领先，以春日漫游、热爱坚守、樱花树和星星家族为主；负面帖极少，只有等级开放催促、恶意玩家和保底愤怒。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">600天热爱与坚持</span><div class="topic-detail">「热爱应该就是游戏正式上线的第一天就下载了...600多天，任务从来没断过...就像一场谈了很久的恋爱一样」感人长情。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">春日氛围与拍照</span><div class="topic-detail">「心动小镇太好玩了」「感觉好有氛围感」以及大量的春日漫游分享。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">星星家族团队感恩</span><div class="topic-detail">「一群人，一条路，一起成长」宣扬游戏内团队情谊。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">豆包牛逼等趣味评价</span><div class="topic-detail">「豆包牛逼」用网络梗表达赞赏。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">新等级迟迟不开放</span><div class="topic-detail">「到底还开不开放新等级？？」焦躁催促。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">恶意玩家攻击与骂人</span><div class="topic-detail">「避雷一下这个人...一上来就拿斧头砍人，开车撞人」痛斥。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">保底机制与圈钱指责</span><div class="topic-detail">「别人几条毕业都算了...就因为劳资对你们失望透顶不充钱了是吗」极度愤怒，爆粗。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-04-02</span>
+            <span class="card-stats">
+                <span>观点帖 43 条</span>
+                <span class="card-score-tag">信号分 68.53</span>
+                <span class="card-overview-preview">正面帖以春日多巴胺、拍照好看、萌新第一桶金和投票活动喜讯为主；负面帖以登录方式变动、建材标注不清、卡顿和照片丢失等问题为主。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖以春日多巴胺、拍照好看、萌新第一桶金和投票活动喜讯为主；负面帖以登录方式变动、建材标注不清、卡顿和照片丢失等问题为主。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">春日多巴胺可爱可爱</span><div class="topic-detail">「#小镇里的春日漫游 春日多巴胺～可爱可爱」欢快。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">树下拍照与交友</span><div class="topic-detail">「树下拍照好好看 交友呀，一起玩」积极邀约。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">萌新赚到第一桶金</span><div class="topic-detail">「终于赚到萌新的一中桶金啦哈哈哈」庆祝。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">拥抱弥补心跳浪漫</span><div class="topic-detail">「拥抱就是为了弥补人类右胸腔没有的心跳」诗意。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">登录方式强制Tap账号</span><div class="topic-detail">「我记得以前登陆是可以只用手机号登录的吧，现在怎么只能用这个tap账号登啊。」怀念旧方式，不便。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">订购家具支付方式模糊</span><div class="topic-detail">「我真服了，本来订购券就难开出来，物流里的反季建材能不能标注是用爱心钻还是钱还是星星啊」愤怒被骗。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">卡顿丢失事件奖励</span><div class="topic-detail">「我正在事件中，结果突然卡住了，重新登录之后，事件已经结束了，而且没有拿到奖励。」建议补发。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">游戏数据丢失崩溃</span><div class="topic-detail">「今天正常上线准备更新，结果...所有游戏数据全部没了...我真的崩溃了」重大灾难。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-04-01</span>
+            <span class="card-stats">
+                <span>观点帖 33 条</span>
+                <span class="card-score-tag">信号分 76.36</span>
+                <span class="card-overview-preview">正面帖以开心、春日粉色花花、抽到物品和好看服装为主；负面帖以蓝钻不足、月卡奖励缺失和手机发热为主。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖以开心、春日粉色花花、抽到物品和好看服装为主；负面帖以蓝钻不足、月卡奖励缺失和手机发热为主。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">粉色花花春日漫游</span><div class="topic-detail">「粉粉的也太好看了吧」少女心。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">第一次抽到喜悦</span><div class="topic-detail">「第一次抽到」欧气。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">服装发饰都好看</span><div class="topic-detail">「出的衣服发饰都很好看」肯定设计。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">浇水群招新温馨</span><div class="topic-detail">「欢迎来到心动小镇的大家庭！...互相浇水，家园点赞」热情招募。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">蓝钻获取难活动消耗大</span><div class="topic-detail">「宝宝啊，给点蓝钻吧...又肝又氪，每天蹲在商店把月卡周卡四折一更新就拿下，买断，好累啊」哭泣蓝钻荒。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">月卡其他奖励未领到</span><div class="topic-detail">「为什么充了月卡，每天领取的只有蓝色钻石，其他那个没有领到」质疑缺斤短两。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">手机发热耗电快</span><div class="topic-detail">「玩不到10分钟手机就开始发热耗电特别快」优化问题。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">坑钱大树不出</span><div class="topic-detail">「坑得要死的游戏，花了两千多块大树都不给我」暴怒。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-03-31</span>
+            <span class="card-stats">
+                <span>观点帖 62 条</span>
+                <span class="card-score-tag">信号分 79.03</span>
+                <span class="card-overview-preview">正面帖以9级庆祝、春日惬意、开服好友和混搭家园为主；负面帖以卡顿、耕地不足、弃游告别和月卡短斤少两为主。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖以9级庆祝、春日惬意、开服好友和混搭家园为主；负面帖以卡顿、耕地不足、弃游告别和月卡短斤少两为主。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">9级唯祎朵朵成长</span><div class="topic-detail">「9级啦 唯祎&朵朵」并大量安利标签，展示热爱。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">春日晒太阳惬意</span><div class="topic-detail">「晒太阳 看落日 在樱花树下乘阴 多么惬意的生活啊」赞赏氛围。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">开服好友唯一十级</span><div class="topic-detail">「十级好友你是唯一」深厚友情。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">新鞋子和猫爪包萌炸</span><div class="topic-detail">「救命，好喜欢这期的鞋子和这个猫爪包啊，萌炸了」为萌物倾倒。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">游戏卡死与喂狗卡住</span><div class="topic-detail">「刚上游戏就给我卡死了，喂个狗就动不了了」基础操作卡死。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">耕地数量不足难受</span><div class="topic-detail">「那这官方不能多增加一些耕地吗？40块少了几块，看着好难受」强迫症不满。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">告别小企鹅退游</span><div class="topic-detail">「再见了，小企鹅」疑似弃坑。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">月卡展演票未发放</span><div class="topic-detail">「为啥今天冲的月卡上回冲的最后一次不给我就算了今天刚充的也不给我」强烈指责。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-03-30</span>
+            <span class="card-stats">
+                <span>观点帖 25 条</span>
+                <span class="card-score-tag">信号分 67.68</span>
+                <span class="card-overview-preview">正面帖以春日漫游、樱花树、官方礼物和春假享受为主；负面帖包含拍照难、单人无聊、氪金质疑和宠物卡锅。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖以春日漫游、樱花树、官方礼物和春假享受为主；负面帖包含拍照难、单人无聊、氪金质疑和宠物卡锅。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">收到官方联动礼物激动</span><div class="topic-detail">「玩了这么久的心动，居然能抽到官方送的联动礼物，真的太幸运了叭！」激动炫耀。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">绝美樱花树</span><div class="topic-detail">「绝美的樱花树」赞美。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">春日慢生活享受</span><div class="topic-detail">「给自己一个春假 小镇是你最自由的时光」诗与远方。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">自家花园漂亮满意</span><div class="topic-detail">「我的花园真的太漂亮了」自豪。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">拍照把自己放框里困难</span><div class="topic-detail">「我都服了，给我强迫症都整犯了，想拍个照真难。」操作不便。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">无搭子陪伴无聊</span><div class="topic-detail">「没有搭子陪着，一个人玩很无聊的」孤独感。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">氪金奖励领取限制</span><div class="topic-detail">「家人们 这个是不继续氪就不让领了吗？」质疑付费墙。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">做饭猫干扰怀疑官方加重</span><div class="topic-detail">「以前虽然也会有猫，但频率没这么高...我严重怀疑官方不仅没有想办法解决问题，甚至还加重了」阴谋论。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-03-29</span>
+            <span class="card-stats">
+                <span>观点帖 63 条</span>
+                <span class="card-score-tag">信号分 69.35</span>
+                <span class="card-overview-preview">正面帖以春日漫游、花瓣雨、回忆录和存图为主；负面帖以蹭鱼尾骂人、登录卡退、爆率低和账号变新号为焦点。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖以春日漫游、花瓣雨、回忆录和存图为主；负面帖以蹭鱼尾骂人、登录卡退、爆率低和账号变新号为焦点。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">樱花树与春日粉粉</span><div class="topic-detail">「小镇下桃花雨了耶」「又是一年粉粉的 ，有你在真好！」充满陪伴感。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">第一次提前出存图</span><div class="topic-detail">「存图，第一次提前出」喜悦。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">十年之约回忆录</span><div class="topic-detail">「再玩你这款游戏十年，我也才28岁。」深情长情。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">小狗遛弯与可爱崽</span><div class="topic-detail">「天气好好 适合出来遛小狗」「我家两个崽太萌了」日常分享。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">蹭鱼尾还骂人避雷</span><div class="topic-detail">「蹭鱼尾还骂人」社交摩擦激烈。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">登录卡退与账号丢失</span><div class="topic-detail">「为啥我很久不玩想回游登录发现变成新号了」痛失账号，困惑不满。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">抽卡大号非小号欧</span><div class="topic-detail">「大号抽啥啥不中，小号一抽就中」被欧非差距气到。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">斧头皮肤无待机动作</span><div class="topic-detail">「为什么斧头的扫帚皮没有待机，古风池那一期的斧镐皮还有拔剑动作」细节对比不满。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-03-28</span>
+            <span class="card-stats">
+                <span>观点帖 90 条</span>
+                <span class="card-score-tag">信号分 76.34</span>
+                <span class="card-overview-preview">正面帖井喷，小镇入春花瓣雨引发浪漫狂潮，新舞蹈、一发抽全和毕业庆祝；负面帖以保底、建造模式缺失、承重不足为主。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖井喷，小镇入春花瓣雨引发浪漫狂潮，新舞蹈、一发抽全和毕业庆祝；负面帖以保底、建造模式缺失、承重不足为主。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">花瓣雨春日漫游</span><div class="topic-detail">「小镇入春了」「花瓣雨很好看，总要和想见的人一起去看看吧」温柔宣传，春日氛围拉满。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">72蓝钻一发抽全</span><div class="topic-detail">「我只有72个蓝钻，没想到一发就抽到全部了，心动小镇我爱你」感恩戴德。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">新舞蹈不错</span><div class="topic-detail">「新舞蹈不错」与青柠歌配，乐趣十足。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">毕业庆祝</span><div class="topic-detail">「毕业啦🎉」达成成就。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">保底与爆率不改</span><div class="topic-detail">「真是够了心动小镇，大保低本来就没多少蓝钻」「心动小镇没有心啊」抱怨始终保底。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">建造模式19级仍未解锁</span><div class="topic-detail">「发展家19级了 还是没有建造模式」焦急无助。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">岛屿承重不足</span><div class="topic-detail">「岛啊，你啥时候再加承重」容量告急。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">社区恶意攻击风气差</span><div class="topic-detail">「钓鱼钓到她放的鱼饵那里了...她就开始用斧头打我，开车撞我」遭遇网络暴力。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-03-27</span>
+            <span class="card-stats">
+                <span>观点帖 46 条</span>
+                <span class="card-score-tag">信号分 66.65</span>
+                <span class="card-overview-preview">正面帖以拍照、蓝钻奖池无保底开心、打卡双人动作为主；负面帖以爆率低、卡顿、闪退和保底为主。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖以拍照、蓝钻奖池无保底开心、打卡双人动作为主；负面帖以爆率低、卡顿、闪退和保底为主。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">蓝砖奖池无保底开心</span><div class="topic-detail">「蓝砖奖池没有保底出 就很开心🥰」远离保底，喜悦。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">谲刻茶会男池好评</span><div class="topic-detail">「展演奖池“谲刻茶会”4月4日上线 这次男池非常的给力」期待男装。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">打卡新双人动作可爱</span><div class="topic-detail">「打卡的新双人动作很可爱啊」为动作点赞。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">袜套花边鞋适合小个子女鹅</span><div class="topic-detail">夸赞新鞋设计。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">服务器卡顿与闪退</span><div class="topic-detail">「破土豆服务器什么时候能多修修啊老是卡」「为什么❓我老是卡退呀」抱怨服务器质量。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">保底非洲人崩溃</span><div class="topic-detail">「刚出来就玩了，，才三套好看点的衣服，头发也是 少的可怜」非酋自嘲。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">庆典食物高星概率失常</span><div class="topic-detail">「新庆典食物高星概率严重失常」质疑食谱概率。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">背景音乐声音过小</span><div class="topic-detail">「这背景音乐有问题吧，声音那么小」细节投诉。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-03-26</span>
+            <span class="card-stats">
+                <span>观点帖 76 条</span>
+                <span class="card-score-tag">信号分 65.12</span>
+                <span class="card-overview-preview">正面帖迎来爆发，大量一发入魂、堆堆袜好评、和搭子汪汪队等；负面帖也激增，集中于保底、抽卡黑和建材重复。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖迎来爆发，大量一发入魂、堆堆袜好评、和搭子汪汪队等；负面帖也激增，集中于保底、抽卡黑和建材重复。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">新奖池一发入魂狂喜</span><div class="topic-detail">「嗯对嗯对，一发就中了」用无数个「么么么」表白游戏，狂喜炫欧。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">堆堆袜与可爱单品</span><div class="topic-detail">「堆堆袜好评！」以及「“果冻猫爪单肩包”？听劝都抽粉色！」推荐单品。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">搭子汪汪队日常</span><div class="topic-detail">「汪汪队开大会 ，一起放风一起撒欢儿🐶」展示与搭子的欢乐。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">第一次制作五星</span><div class="topic-detail">「第一次制作就出了五星，有点幸运」享受制造惊喜。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">全保底与黑心奖池</span><div class="topic-detail">「无所谓了，每次都保底，两个奖池一个头发都不给」「你自己看看这个概率阴不阴🫠」批量抨击。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">付费玩家遭背刺</span><div class="topic-detail">「什么意思啊心动小镇？次次准备大保底吗？为什么老是这样对待消费玩家」感觉被针对。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">奖池偏心宠物</span><div class="topic-detail">「我发现每次抽奖自己抽不到套装，而宠物次次都有套装」吐槽人不如宠。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">蓝图建造异常</span><div class="topic-detail">「进入蓝图建造就成这样了」功能出错。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-03-25</span>
+            <span class="card-stats">
+                <span>观点帖 21 条</span>
+                <span class="card-score-tag">信号分 49.76</span>
+                <span class="card-overview-preview">正面帖有穿搭赞美、金闪闪认证和套餐爆率满意；负面帖大爆发，围绕捕虫消失bug、男装设计丑、宠物干扰做饭、服务器卡和黑心。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖有穿搭赞美、金闪闪认证和套餐爆率满意；负面帖大爆发，围绕捕虫消失bug、男装设计丑、宠物干扰做饭、服务器卡和黑心。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">穿搭超级美萌</span><div class="topic-detail">「超级美萌有没有•ᴗ•」分享穿搭获得认可。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">金闪闪认证获得</span><div class="topic-detail">「终于得到金闪闪的认证了」成就喜悦。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">套餐爆率可以</span><div class="topic-detail">「这个套餐爆率可以的」难得肯定抽卡。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">虫抓跑建模消失bug</span><div class="topic-detail">「抓着抓着的虫跑建模里了，消失了...每次都是很崩溃的」频繁遭遇bug，强烈要求修复。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">男装设计眼前一黑</span><div class="topic-detail">「我还以为这是背面，结果你告诉我这是正面。❗屁股长前面去了是吧？」激烈批评男裤丑。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">宠物干扰做饭逼疯</span><div class="topic-detail">「能不能在做饭的时候把宠物捣乱去掉！！！！！！！！每次都给我卡糊了！！！」歇斯底里。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">卡顿与挂机强制退出</span><div class="topic-detail">「太卡了...一开高帧率就卡的要命...海钓刚到海上，提示因挂机退出事件？」恶心的机制。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-03-24</span>
+            <span class="card-stats">
+                <span>观点帖 21 条</span>
+                <span class="card-score-tag">信号分 71.29</span>
+                <span class="card-overview-preview">正面帖以五星集锦、兑换码分享和小狗不影响种菜改良为亮点；负面帖则聚焦发展家等级上限、氪金称号上调、频繁卡屏和bug。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖以五星集锦、兑换码分享和小狗不影响种菜改良为亮点；负面帖则聚焦发展家等级上限、氪金称号上调、频繁卡屏和bug。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">一发五星集锦喜悦</span><div class="topic-detail">「#心动小镇。一发五星集锦！」炫耀抽卡欧气。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">小狗不影响种菜了</span><div class="topic-detail">「今天发现小狗狗躺在地里也不影响种菜了，可以正常撒种子！可喜可贺！给小镇工程师点赞。」表扬修复。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">发展家经验溢出盼更新</span><div class="topic-detail">「发展家协会啥时候更新啊，都已经多这么多经验值了」虽然抱怨但属建设性。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">直播修bug秒修良性bug</span><div class="topic-detail">无此条，跳过。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">氪金称号上调令人失望</span><div class="topic-detail">「为什么氪条拿随心所欲称号要上调？...心动小镇你真的让我很失望了」控诉欺骗，后悔养多号想逃。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">频繁卡屏死机</span><div class="topic-detail">「闹麻了，刚买的手机玩别的大型手游都没卡屏过，心动小镇两分钟卡死两次」怒骂勾石服务器。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">任务材料缺失</span><div class="topic-detail">「任务说让我来这里采集萤石？东西呢？」任务指引bug，白跑。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">账号丢失无人一起玩</span><div class="topic-detail">「都没人跟我玩我的准备不想玩了」孤独弃坑。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-03-23</span>
+            <span class="card-stats">
+                <span>观点帖 21 条</span>
+                <span class="card-score-tag">信号分 61.19</span>
+                <span class="card-overview-preview">正面帖以拍照、钓鱼和叶罗丽娃娃店外观为主；负面帖以账号被盗、邻里堵门、宠物毁菜和梦光影无回收为焦点。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖以拍照、钓鱼和叶罗丽娃娃店外观为主；负面帖以账号被盗、邻里堵门、宠物毁菜和梦光影无回收为焦点。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">粉色叶罗丽娃娃店印象</span><div class="topic-detail">「就就是有一天路过一个房子 ，粉色的 ，感觉有点像叶罗丽娃娃店」为发现美屋感叹。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">浇水群自由氛围</span><div class="topic-detail">「群自由 群主超级好 不会冷落新人」推荐浇水群，社群获好评。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">钓鱼参与庆典</span><div class="topic-detail">「一起钓鱼吧，为新庆典冲冲冲」号召活动。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">账号被盗物品被消耗</span><div class="topic-detail">「上号天塌了了被盗了东西也被用了」痛苦求助。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">邻居恶意堵门</span><div class="topic-detail">「这游戏是不欢迎新人吗？风气真差。刚玩没几分钟，邻居开车把门堵住了」讽刺还原恶邻居。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">宠物猫毁掉果酱与不随行</span><div class="topic-detail">「如何寄养一只毁了我三个葡萄果酱的讨人厌的猫」厌烦宠物。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">梦光影高级回收缺失</span><div class="topic-detail">「梦光影没有高级回收了吗？」质疑功能砍掉。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-03-22</span>
+            <span class="card-stats">
+                <span>观点帖 36 条</span>
+                <span class="card-score-tag">信号分 65.33</span>
+                <span class="card-overview-preview">正面帖主打菲梦少女cos、家园喜爱、撒花动作美；负面帖涉及猫咪穿墙、过山车轨道限制、抽卡81抽无彩和家园承重。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖主打菲梦少女cos、家园喜爱、撒花动作美；负面帖涉及猫咪穿墙、过山车轨道限制、抽卡81抽无彩和家园承重。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">人格头发cos菲梦少女</span><div class="topic-detail">「我突然发现这个人格的头发可以cos菲梦少女的宁雪艳！！」兴奋展示二创，社区创作热情高涨。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">撒花动作美如画</span><div class="topic-detail">「这个撒花动作太美啦！蒲公英专属 梦光影」颜值型动作受追捧。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">超绝美蒲公英种植</span><div class="topic-detail">「超绝美蒲公英 赶紧种起来 错过就没啦」强烈推荐限时植物。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">好友默契互动</span><div class="topic-detail">「原来我们是如此的默契(✪▽✪)」享受社交同步乐趣。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">猫咪穿墙与堵灶台</span><div class="topic-detail">「猫什么时候能修复不要穿墙」「心动小镇能不能管管这个猫咪」频繁抗议宠物bug。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">过山车大回环轨道限制</span><div class="topic-detail">「三种5级的过山车大回环全都不能在空中接轨道...哪家过山车是只有在地上才能上环的？」批评建造不自由。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">81抽无彩对比伤害</span><div class="topic-detail">「我都抽81抽了一个彩都没有出，我表妹60多抽...出全抽双马尾了」人比人气死人，心态崩。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">更新错误白费流量</span><div class="topic-detail">「让我更新...更新了一遍...错误...需要重新更新，花4个G的流量」痛斥更新bug，流量损失。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-03-21</span>
+            <span class="card-stats">
+                <span>观点帖 53 条</span>
+                <span class="card-score-tag">信号分 65.17</span>
+                <span class="card-overview-preview">正面帖以彩虹天观鸟、鱼虫毕业、新动作和速刷攻略为高潮；负面帖以研究功能卡死、新庆典卡顿、新手引导bug和登录问题为主。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖以彩虹天观鸟、鱼虫毕业、新动作和速刷攻略为高潮；负面帖以研究功能卡死、新庆典卡顿、新手引导bug和登录问题为主。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">彩虹天捕获稀有鸟虫</span><div class="topic-detail">「谁懂啊啊啊啊终于趁着彩虹天拍到紫背琼鸟...还抓到了透翅蝶和绿蜗牛」记录珍贵收获，成就感爆棚。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">鱼虫毕业肝八小时满足</span><div class="topic-detail">「也是心满意足了，肝了八个小时」对努力成果自豪。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">新动作拍照热潮</span><div class="topic-detail">「啊啊啊！这新动作谁不爱拍照啊！」热情安利新动作。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">速刷庆典代币攻略</span><div class="topic-detail">「速刷庆典代币攻略 推荐食谱 清空商店」积极分享高效方法。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">研究功能长时间不可用</span><div class="topic-detail">「为什么我研究不了了？都好几周都是这样的了」「研究了不了...好几周一直这样」同名bug多人中招，抱怨拖延。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">新庆典做饭车卡顿</span><div class="topic-detail">「新庆典餐做饭车太卡了」期待的活动带卡顿，影响心情。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">新手引导bug卡死</span><div class="topic-detail">「我第一天玩的时候在新手引导三级的时候卡了个bug就过不下去了...现在第三天又卡了个bug」新手劝退。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">账号丢失差评</span><div class="topic-detail">「差评，找不回以前的号」给差评，情绪负面。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-03-20</span>
+            <span class="card-stats">
+                <span>观点帖 23 条</span>
+                <span class="card-score-tag">信号分 61.61</span>
+                <span class="card-overview-preview">正面帖以考拉五星、石头颜艺、新月光宝盒为主；负面帖涉及抽卡保底、宠物寄养无经验、猫咪不随行和帧率卡顿。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖以考拉五星、石头颜艺、新月光宝盒为主；负面帖涉及抽卡保底、宠物寄养无经验、猫咪不随行和帧率卡顿。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">考拉五星上天垂怜</span><div class="topic-detail">「上天垂怜！...终于出来了」历经艰辛终获考拉五星，欣喜若狂，目标新动物形态。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">有趣石头颜艺</span><div class="topic-detail">「找彩虹花束突然发现的，这个石头真是好颜艺，要成精了吧。」发现彩蛋，乐不可支。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">全新月光宝盒超萌</span><div class="topic-detail">「3月26日全新【月光宝盒】感觉这次超级萌！」前瞻期待。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">新服裝美萌</span><div class="topic-detail">「新服装这个美萌」点赞新衣。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">老玩家抽卡保底不公</span><div class="topic-detail">「为什么老玩家老是大保底 新玩家都不怎么保底 我真的不行了」感觉被区别对待。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">宠物寄养无经验</span><div class="topic-detail">「宠物寄养能增加经验吗？我寄养一天没变化！」困惑功能失效。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">PC端闪退与黑屏</span><div class="topic-detail">「为什么PC端要闪退呀？」「黑屏了，我的天」多端故障。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">121抽不见彩极度愤怒</span><div class="topic-detail">「121抽，呵呵，彩都见不到，黑心小镇把人心玩凉了」用「黑心」指责，愤怒弃坑。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-03-19</span>
+            <span class="card-stats">
+                <span>观点帖 19 条</span>
+                <span class="card-score-tag">信号分 64.74</span>
+                <span class="card-overview-preview">正面帖以新奖池猜测、找搭子、猫咪包围和四季系统为主；负面帖以曝光bug、卡顿、爆率和退游情绪为主。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖以新奖池猜测、找搭子、猫咪包围和四季系统为主；负面帖以曝光bug、卡顿、爆率和退游情绪为主。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">四月新奖池大胆猜测</span><div class="topic-detail">「心动小镇新奖池爆料？」以图文并茂猜测新奖池内容，创意十足，期待值拉满。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">四季系统获得惊喜</span><div class="topic-detail">「这游戏还有四季系统，真不错」对季节变化感到惊喜。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">猫咪包围治愈场景</span><div class="topic-detail">「画画退出来后，发现脚下都是猫咪🐱」分享被猫群围住的可爱画面。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">找搭子回归游戏</span><div class="topic-detail">「蹲搭子 刚回游 求带」寻找带玩，积极性回升。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">瀑布卡顿与拍鸟bug</span><div class="topic-detail">「每次走到有瀑布的地方都开始卡顿，开个拍鸟的事件，到瀑布附近直接卡顿的要死」特定场景卡顿严重。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">建房子突然曝光bug</span><div class="topic-detail">「隔这装修呢，突然曝光了，吓我一跳，我还觉得核弹爆炸了呢」遭遇恐怖光影bug。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">爆率极低与账号丢失</span><div class="topic-detail">「心动小镇能不能对我好点，我真的疯了，这爆率能不能再低一点」以及「我以前的帐号不见了」接连打击。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">流水线恶意捣乱</span><div class="topic-detail">「我在流水线做饭，此人端锅...全糊了」被信任辜负，认为游戏环境龌龊。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-03-18</span>
+            <span class="card-stats">
+                <span>观点帖 15 条</span>
+                <span class="card-score-tag">信号分 76.13</span>
+                <span class="card-overview-preview">正面帖围绕新职业护士、中国风、浇水群和女儿养成；负面帖集中在兑换码无效、充值未到账、猫咪性格和闪退问题。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖围绕新职业护士、中国风、浇水群和女儿养成；负面帖集中在兑换码无效、充值未到账、猫咪性格和闪退问题。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">新职业护士宝宝可爱</span><div class="topic-detail">「小镇新职业来啰 好可爱的护士宝宝(｡•̀ᴗ-)✧」新增职业获好评。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">中国风师妹惊喜</span><div class="topic-detail">「是小师妹吗？！！中国风～」期待中国风内容。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">女儿养成与幽默</span><div class="topic-detail">「你问我在干嘛 我说在养女儿...跟你们这些不玩心动小镇的说不清楚。」自豪养女，沉浸感强。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">浇水群与庆典邀请</span><div class="topic-detail">「心动小镇浇水群招新啦，一起来玩新庆典吧！」持续社群招募。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">兑换码全部无效</span><div class="topic-detail">「你们的兑换码都哪来的？还有没有新的了？我一个都没试成功。」兑换码无法使用，感到被骗。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">充值未到账</span><div class="topic-detail">「为什么我在心动小镇公众号充的钱没有到账游戏？」反馈充值丢单，焦急。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">猫咪性格无法寄养</span><div class="topic-detail">「刚入坑的时候随便领养的猫咪，独行➕懒散➕不理人想寄养都带不去宠物店」无奈想砸手机，机制不合理。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">频繁闪退重装循环</span><div class="topic-detail">「每次下载心动小镇没几天都有闪退问题...完全进不去...重新下载过几天又会这样了」陷入下载-闪退-重装死循环，崩溃。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-03-17</span>
+            <span class="card-stats">
+                <span>观点帖 23 条</span>
+                <span class="card-score-tag">信号分 68.04</span>
+                <span class="card-overview-preview">正面帖以十级庆祝、联动期待和招募玩伴为主；负面帖中社交匮乏、内容枯燥、卡顿、bug等问题持续。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖以十级庆祝、联动期待和招募玩伴为主；负面帖中社交匮乏、内容枯燥、卡顿、bug等问题持续。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">十级友谊庆祝</span><div class="topic-detail">「十级！！！！#友谊久久」高调庆祝与好友满级，友谊深厚。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">逐玉联动强烈期望</span><div class="topic-detail">「能不能和逐玉联动，求你了，蓝钻池😍😍😍」期望官方联动，热情洋溢。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">招募玩伴与活动发起</span><div class="topic-detail">「希望能有小伙伴一起玩呀，可以一起肝材料（我可以开车）互相翻锅」全面邀请，展现丰富多彩的互动。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">草莓帽等可爱搭配</span><div class="topic-detail">「“草莓帽”🍓也太适合窝家贵宾犬了吧！」分享打扮喜悦。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">内容枯燥无聊</span><div class="topic-detail">「玩久之后真的很无聊我上线了都不干什么，委托也不想做」表达长草期倦怠。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">卡顿与优化差</span><div class="topic-detail">「心动小镇越来越卡。...移动的画面都是会掉帧卡顿的。不要老是想着如何去出氪金衣服」强烈批评只坑钱不优化。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">社交属性太少</span><div class="topic-detail">「三年没有出类似狼人杀、斗地主之类的玩法...一个人玩又容易无聊」怀念曾经的火热，感慨产能不足。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">恶意吃食物行为</span><div class="topic-detail">「恶意吃玩家食物的能不能管管？！真服了」遭遇捣乱，要求官方管理。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-03-16</span>
+            <span class="card-stats">
+                <span>观点帖 16 条</span>
+                <span class="card-score-tag">信号分 61.25</span>
+                <span class="card-overview-preview">正面帖稀少，主要集中在CP美好、企鹅返场和遛狗；负面帖中卡死、bug、蓝钻获取困难问题突出。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖稀少，主要集中在CP美好、企鹅返场和遛狗；负面帖中卡死、bug、蓝钻获取困难问题突出。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">CP与甜蜜互动</span><div class="topic-detail">「有cp是个很美好的事情」「遇见你是一件很幸福的事情」表达游戏内恋爱的幸福感。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">企鹅返场好消息</span><div class="topic-detail">「好消息！企鹅会返场！进来猜猜看哪一年~」分享返场消息，感到振奋。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">新衣服与猫猫币满足</span><div class="topic-detail">「攒的猫猫币可以买新衣服了」期待购买新衣。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">游戏卡死与闪退</span><div class="topic-detail">「为什么我玩着玩着就突然卡死？真给我玩没劲了」抱怨卡顿磨灭兴致。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">BUG与无法浇水家园</span><div class="topic-detail">「一天天的bug 1堆」「还有来我家浇水，他说看不见我家」反映各种奇怪bug。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">蓝钻获取途径少逼氪</span><div class="topic-detail">「蓝钻能不能多一点出来出路，途径那么少，很难不充钱」指责付费引导。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">会员天数不符</span><div class="topic-detail">「刚买会员，发现没有30天」怀疑短斤少两。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-03-15</span>
+            <span class="card-stats">
+                <span>观点帖 30 条</span>
+                <span class="card-score-tag">信号分 71.17</span>
+                <span class="card-overview-preview">正面帖以治愈休闲、宠物新衣、月亮宝盒返厂为主；负面帖围绕登录困难、评分质疑、家具重复刷新和宠物穿墙。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖以治愈休闲、宠物新衣、月亮宝盒返厂为主；负面帖围绕登录困难、评分质疑、家具重复刷新和宠物穿墙。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">治愈休闲与朋友共玩</span><div class="topic-detail">「挺好玩的 可以和和朋友一起玩 也可以自己一个人玩 挺治愈的」推荐语强调游戏解压属性。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">小猫小狗新衣服可爱</span><div class="topic-detail">「好可爱好看！」展示宠物新装扮，引发一波购买欲。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">月光宝盒返厂强烈推荐</span><div class="topic-detail">「强烈推荐第一次月光宝盒返厂」为活动站台，期待值高。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">绿隐小舍等建房推荐</span><div class="topic-detail">「推荐大家去做白平衡老师的绿隐小舍，超好看！！！」分享建筑蓝图，相互种草。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">登录与授权异常</span><div class="topic-detail">「5G网还登录不进去」「登录授权异常然后闪退」多人反映进不去，卡在登录界面，焦急哭诉。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">评分被质疑锁死</span><div class="topic-detail">「这个评分是怎么做到一直8.8锁死不掉的，还有热度排名」怀疑评分造假，表达不满。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">家具店重复老物件</span><div class="topic-detail">「家具店刷新能不能别一直给我老物件，我真够了。」愤怒刷新不出新品。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">宠物穿墙与卡脚</span><div class="topic-detail">「邪恶小猫咪会穿墙！那就不要卡我的脚啊啊啊啊」又爱又恨，呼吁优化。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-03-14</span>
+            <span class="card-stats">
+                <span>观点帖 50 条</span>
+                <span class="card-score-tag">信号分 67.1</span>
+                <span class="card-overview-preview">正面帖以清纯可爱、海外登顶、流星许愿和日常分享为主；负面帖围绕潮流季太肝、承重问题、抽卡保底和活动内容枯竭。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖以清纯可爱、海外登顶、流星许愿和日常分享为主；负面帖围绕潮流季太肝、承重问题、抽卡保底和活动内容枯竭。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">包臀裙新紫色等穿搭狂喜</span><div class="topic-detail">「“包臀裙”居然上新了紫色耶！！💜」对新颜色兴奋，穿搭贴频出。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">海外收入增长榜登顶喜讯</span><div class="topic-detail">「2月手游海外收入增长榜发布！心动小镇登顶」玩家自发传播荣誉，感到骄傲。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">喜羊羊联动纪念打卡</span><div class="topic-detail">「你好 我喜欢你 喜羊羊联动纪念打卡」表达对联动喜爱。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">研究所5级炫耀</span><div class="topic-detail">「诶呦 你怎么知道我研究所5级了」凡尔赛式分享游戏成就。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">潮流季太肝累到放弃</span><div class="topic-detail">「还差7颗星，衣服家具也刷了几次，实在太累了做饭做得眼睛不由自主闭上了」因太肝告别活动，身心疲惫。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">承重不足与拆迁频繁</span><div class="topic-detail">「承重！！！！！！！能不能增加？...好看的物件越来越多，永远在拆迁中！！」嘶吼表达对家园容量受限的愤怒。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">抽卡全大保底黑脸</span><div class="topic-detail">「这次赛季所有奖池都试过了，都很黑。都是大保底。」心灰意冷，劝退感强。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">活动结束无内容可玩</span><div class="topic-detail">「请问下次潮流季什么时候上面，一点都不好玩了。」等吐槽活动过期后游戏无聊，要求新内容。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-03-13</span>
+            <span class="card-stats">
+                <span>观点帖 37 条</span>
+                <span class="card-score-tag">信号分 63.62</span>
+                <span class="card-overview-preview">正面帖涵盖联动小汽车、过山车招募、免费皮肤提醒和兑换码分享；负面帖涉及潮流季时间不足、服装店重复刷新、宠物穿模等。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖涵盖联动小汽车、过山车招募、免费皮肤提醒和兑换码分享；负面帖涉及潮流季时间不足、服装店重复刷新、宠物穿模等。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">喜羊羊联动小汽车可爱</span><div class="topic-detail">「谁还没谁还没有获取这个小汽车?都去给我冲!太可爱啦」大力推荐联动载具，萌化人心。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">过山车与浇花组队招募</span><div class="topic-detail">「我家刚搭好超长过山车，还有满院郁金香和小麦田需要组队浇水～」热情邀请一起玩耍，社交玩法丰富。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">潮流季倒计时与免费皮肤</span><div class="topic-detail">「潮流季仅剩一天！别错过这款免费皮肤！」提醒玩家领取，避免遗憾，分享利他。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">兑换码与位置播报</span><div class="topic-detail">「3月13日位置播报」提供当日兑换码与资源，保持每日更新，服务社区。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">潮流季时间不够种花</span><div class="topic-detail">「不够时间种花了，潮流季的花种子怎么办」抱怨活动时间短，没能完成种植。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">服装店重复刷新不出新</span><div class="topic-detail">「希望小镇把服装店，买过的衣服不要再出现，刷新了好几天新东西都不出来」感到厌倦，浪费时间。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">宠物穿模与卡交互</span><div class="topic-detail">「能不能改改宠物啊，你家宠物能穿家具，穿锅啊，动不动穿锅进来卡人交互」忍无可忍，批评物理引擎。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">账号绑定与登录问题</span><div class="topic-detail">「我的号一直卡在这里，上不去是什么问题？」「新买的号，结果发现没有手机号可以绑定了」反映账号系统混乱。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-03-12</span>
+            <span class="card-stats">
+                <span>观点帖 45 条</span>
+                <span class="card-score-tag">信号分 75.93</span>
+                <span class="card-overview-preview">正面帖继续冰雪季梦幻、动物可爱和建造喜悦；负面帖围绕宠物干扰、帧率问题、暗改建材和抽卡坑钱。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖继续冰雪季梦幻、动物可爱和建造喜悦；负面帖围绕宠物干扰、帧率问题、暗改建材和抽卡坑钱。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">冰雪季梦幻与火烈鸟偶遇</span><div class="topic-detail">「哇！心动小镇的冰雪季也太梦幻了吧❄骑着小电驴在雪地里兜风，还偶遇了火烈鸟🦩」洋溢冬日童话氛围。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">五星成就与精通摆件</span><div class="topic-detail">「我也是熬出头了，终于五级了啦」「现在是个开心的日子，玉米终于出了五星，还拿了精通摆件」达成目标欣喜若狂。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">小镇天空景色治愈</span><div class="topic-detail">「感觉小镇每天的天空都很好，很治愈的感觉」分享蓝天与治愈力。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">动物动作与链接动作可爱</span><div class="topic-detail">「全8动物13级动作预览 太可爱了叭！」「这链接动作也太可爱了吧(๑•.•๑)」被萌到，好评如潮。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">宠物干扰烹饪严重</span><div class="topic-detail">「臭猫😡好不容易做够其他食材，准备做最麻烦的极光晚宴，就跑过来堵路直接糊了三个」怒而发帖，要求出不让宠物靠近的功能。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">帧率低、卡顿与发热</span><div class="topic-detail">长文吐槽「帧率最低11帧，...稳定六十帧都做不到」，滑动镜头像抢鼠标，忍受不了。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">建材暗改与欺诈</span><div class="topic-detail">「池子结束后，暗改建材」强烈指责官方把亮闪闪建材改成一坨屎，侵害消费者权益，用「诈骗」形容。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">抽卡坑钱与保底</span><div class="topic-detail">「花了没有300都有200多了 171抽都还没出完」血泪控诉，要求补偿。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-03-11</span>
+            <span class="card-stats">
+                <span>观点帖 28 条</span>
+                <span class="card-score-tag">信号分 73.82</span>
+                <span class="card-overview-preview">正面帖以社群招募、滤镜新功能、欧气炫耀和好友互动为主；负面帖主要反映捣乱玩家、宠物干扰、bug和概率问题。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖以社群招募、滤镜新功能、欧气炫耀和好友互动为主；负面帖主要反映捣乱玩家、宠物干扰、bug和概率问题。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">社群招募与老玩家带队</span><div class="topic-detail">「老玩家带队！」热情宣传群内拍照、打牌等活动，欢迎新老玩家加入，展现社区的包容与活力。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">滤镜功能惊喜上线</span><div class="topic-detail">「心动小镇居然可以调滤镜了？！」惊叹新功能，增加拍照乐趣，玩家奔走相告。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">抽卡欧气集锦</span><div class="topic-detail">「123抽全套快来吸欧气」晒全套抽齐，引来羡慕，提升抽卡信心。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">好友参观与称赞</span><div class="topic-detail">「砍橡树，去朋友家玩」夸赞朋友雪白头发亮晶晶，互访温馨。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">恶意玩家开车撞人</span><div class="topic-detail">「挂一个神人，我在海边钓鱼，这个神人发癫一样，开着小破车直接把我撞进海里」遭遇恶意骚扰，气愤挂人。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">宠物猫干扰种地做饭</span><div class="topic-detail">「这个猫当初不懂事选了粘人属性的...种地的时候占格种不上，肝食物的时候老是跑进来跟我挤」用吐槽语气描述无奈。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">任务bug与音乐会问题</span><div class="topic-detail">「两天了，这个任务到底怎么做才算参与音乐会？」反映任务无法完成，bug困扰久。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">抽卡重复与概率不均</span><div class="topic-detail">「一发十连下去四个瞳孔造型」抱怨重复率高，想要的得不到。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-03-10</span>
+            <span class="card-stats">
+                <span>观点帖 33 条</span>
+                <span class="card-score-tag">信号分 69.85</span>
+                <span class="card-overview-preview">正面帖以拍照邀请、浇水群招新和可爱穿搭为主；负面帖则围绕宠物穿模、卡顿、保底和图鉴问题。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖以拍照邀请、浇水群招新和可爱穿搭为主；负面帖则围绕宠物穿模、卡顿、保底和图鉴问题。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">闺蜜拍照与日常邀约</span><div class="topic-detail">「叫上闺蜜一起来拍这个超萌的捶肩合照」积极分享拍照玩法，社交快照成为社区亮点。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">浇水群与游戏搭子招募</span><div class="topic-detail">「心动小镇浇水群招新啦」「今晚一起玩啊，开钓鱼，捕虫」频繁组织群体活动，社交意愿强烈。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">服装与发型搭配惊喜</span><div class="topic-detail">「今天刷到这个头发了！好看！」「震惊！这个居然是睡衣！！！」意外发现服装用途，惊喜连连。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">家园建造进度分享</span><div class="topic-detail">「家园建造进度➕30%」记录成长，收获点赞，彼此激励。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">猫咪穿墙与卡脚做饭</span><div class="topic-detail">「猫什么时候能修复不要穿墙」「能不能优化猫咪卡脚无法做饭」持续反映宠物模型问题，玩家烦躁。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">加载与下载缓慢</span><div class="topic-detail">「能不能加载的时候快一点啊，真的，前前后后下载花了好几个小时」抱怨资源下载耗时，耐心耗尽。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">抽卡保底与非酋体验</span><div class="topic-detail">「好好好，小镇就这样让我狠狠的保底保底再保底！」反讽保底，以及「我都抽81抽了一个彩都没有出」对比他人，心态炸裂。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">图鉴只能一星形态不满</span><div class="topic-detail">有玩家希望图鉴能显示全星级形态，而不是只显示一星，吐槽「能不能优化一下图鉴啊」，占仓库还无法欣赏。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-03-09</span>
+            <span class="card-stats">
+                <span>观点帖 29 条</span>
+                <span class="card-score-tag">信号分 78.03</span>
+                <span class="card-overview-preview">正面帖以极光温泉、冰雪浪漫和欧气抽卡为核心；负面帖主要围绕账号丢失、画质差和社区摩擦。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖以极光温泉、冰雪浪漫和欧气抽卡为核心；负面帖主要围绕账号丢失、画质差和社区摩擦。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">极光温泉与冰上共舞</span><div class="topic-detail">「在飘雪的温泉山泡汤赏极光，与好友牵手滑过晶莹冰面」诗意描绘冰雪季，如童话般浪漫。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">新春小车紫星购买喜悦</span><div class="topic-detail">「之前错过的新春主题小车车可以紫星拿下了🤞」分享错过物品重新获取的快乐，紫星用途广受好评。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">服装与家具设计高度赞扬</span><div class="topic-detail">「雪花系列家具 完全拒绝不了！」「这把剑才是所有工具皮肤中的top 1」直接表达对特定物品的膜拜。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">跑车购买与成就分享</span><div class="topic-detail">「好耶！终于买跑车咯！！！」兴奋晒出跑车，满足感溢出。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">账号丢失变新号</span><div class="topic-detail">「为什么回游是新号了。。。。」哭诉回坑发现账号清零，「我已急哭救命」，焦虑崩溃。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">画质老旧差评</span><div class="topic-detail">「清朝老画质」吐槽画面落后，期望与现实反差。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">社区摩擦与避雷</span><div class="topic-detail">爆出捞蛋机纠纷，「避雷此人」，不满社区某些玩家行为。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">活动钓鱼难度过高</span><div class="topic-detail">「每次活动的鱼都好难钓啊！」抱怨概率低，耗费时间。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-03-08</span>
+            <span class="card-stats">
+                <span>观点帖 56 条</span>
+                <span class="card-score-tag">信号分 71.0</span>
+                <span class="card-overview-preview">正面帖围绕家园传送、cp纪念、滑冰和动物拍照展开；负面帖则集中在社区捣乱、服装无人问津和建造模式未解锁等问题。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖围绕家园传送、cp纪念、滑冰和动物拍照展开；负面帖则集中在社区捣乱、服装无人问津和建造模式未解锁等问题。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">地面传送门效率获赞</span><div class="topic-detail">「一秒进出卧室太方便了」称赞传送门设计，实用性受到表扬。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">CP亲密10级纪念</span><div class="topic-detail">「纪念和女朋友的10级亲密度」甜蜜分享，社交深度绑定情感。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">滑冰与拍照邀请</span><div class="topic-detail">「一起来滑冰吧！还想拍动作一致的花样滑冰照片！」积极邀请，展示社交互动乐趣。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">直接做一次五星好运</span><div class="topic-detail">「啊啊啊啊啊啊啊啊啊我去,直接五星来了,这么好运吗」疯狂庆祝作物五星，运气爆棚。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">恶意捣乱与社区素质</span><div class="topic-detail">「避雷该玩家，我在家拼图，她一进来就给我捣乱，把拼图碎片弄得乱七八糟」气愤挂人，痛斥低素质玩家。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">服装店商品无人购买</span><div class="topic-detail">「冬天，在小镇卖衣服的我，一件也没卖出去！！！」哀叹生意冷清，反映经济交互薄弱。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">建造模式未按条件解锁</span><div class="topic-detail">有玩家抱怨发展家17级仍无建造模式，蓝图也不可用，感到无语，游戏功能隐藏过深。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">黑屏与时间显示错误</span><div class="topic-detail">「一天能能黑屏至少2次，希望抓紧改进」礼貌但不满，影响体验。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-03-07</span>
+            <span class="card-stats">
+                <span>观点帖 51 条</span>
+                <span class="card-score-tag">信号分 71.41</span>
+                <span class="card-overview-preview">正面帖以钓鱼不空军、冰雪季美景和互动邀请为主；负面帖则涉及建材改动、社区不活跃和卡顿闪屏。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖以钓鱼不空军、冰雪季美景和互动邀请为主；负面帖则涉及建材改动、社区不活跃和卡顿闪屏。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">钓鱼玩法获强烈推荐</span><div class="topic-detail">「一甩就有，绝对不空军。」自信推荐钓鱼，玩家附上安利标签，对垂钓系统高度满意。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">冰雪季场景优美如画</span><div class="topic-detail">「心动小镇✕海边度假」描绘海景、蓝天白云彩色，邀友海边跳舞，充满赞叹。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">互动邀请与社交组队</span><div class="topic-detail">「一起来滑冰」「一起来拼图呀」热情发起活动，休闲解压理念深入人心。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">电子女儿/儿子养成</span><div class="topic-detail">「是我的电子女儿也是在养另一个世界的我自己 好喜欢」将角色视为女儿，情感投射强烈。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">建材材质暗改变丑</span><div class="topic-detail">「何意味啊小镇」对比图显示冰宫材质变差，质问「怕影响下期城堡的效率吗？」，要求改回，失望情绪显著。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">社区活跃度下降感觉冷清</span><div class="topic-detail">「有谁要一起玩吗？现在一点都不活跃，唉」表达对好友流失的失落，组队困难。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">好友误删动作丢失</span><div class="topic-detail">「我的好友误删了我 我就和她有限定的动作 加回去之后什么都没有了」痛苦限定动作消失，希望亲密度可恢复，官方无回应。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">卡顿与闪屏等性能问题</span><div class="topic-detail">「小镇现在怎么老是闪屏啊 😰」反映闪屏现象，担忧手机硬件或优化。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-03-06</span>
+            <span class="card-stats">
+                <span>观点帖 55 条</span>
+                <span class="card-score-tag">信号分 64.84</span>
+                <span class="card-overview-preview">正面帖以新运镜、喜羊羊联动欧气、人格服装为亮点；负面帖则围绕登录困难、春节活动缺乏中国元素和建材外观改动。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖以新运镜、喜羊羊联动欧气、人格服装为亮点；负面帖则围绕登录困难、春节活动缺乏中国元素和建材外观改动。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">喜羊羊联动抽卡欧气爆棚</span><div class="topic-detail">「今天刚好把喜羊羊这个活动刷满，又领了十张！！去抽那个金橡果展演，中了披肩！！」分享十连出披肩的狂喜，弥补遗憾，联动活动迎来高光。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">新运镜与视频创作惊喜</span><div class="topic-detail">「猫咪突然上头的惊喜感🎶」展示新运镜带来的拍摄乐趣，玩家创作热情高涨。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">人格主题服装刷取</span><div class="topic-detail">「INFP拿到本命头套啦」「大家都刷到什么人格主题新服装啦」探讨新服装，归属感与期待并存。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">温馨社区与治愈玩法</span><div class="topic-detail">「温馨的社区、放松的乐趣！一起来享受前所未有的治愈玩法吧！」广告式赞美，体现游戏整体治愈调性被认可。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">登录困难与账号找回</span><div class="topic-detail">「怎么找回我的大号」「登了半天，登不上了」等反映登录障碍，玩家感到无助。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">春节活动缺乏中国风受抨击</span><div class="topic-detail">有玩家强烈不满「过年潮流季连个红色的都不出，白茫茫的一点红都没有，哪个中国游戏过年不出些活动，那可是春节啊」，对比日本玩家待遇，情绪失望。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">建材外观改动引众怒</span><div class="topic-detail">「心动小镇修改」及「我的冰晶小城堡变成塑料娃娃屋了？」指责官方偷偷把建材改丑，原本闪闪发光的变成黯淡，要求「还我妈生建材」。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">留声机与录制bug</span><div class="topic-detail">「为什么录制的时候有时间，保存后的时间是0.00没声音？」反馈功能bug，造成创作成果丢失。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-03-05</span>
+            <span class="card-stats">
+                <span>观点帖 48 条</span>
+                <span class="card-score-tag">信号分 72.06</span>
+                <span class="card-overview-preview">正面帖继续展现对更新内容（如运镜、新衣服）的热爱和朋友羁绊；负面帖主要聚焦活动bug未修、奖励未发和建材暗改。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖继续展现对更新内容（如运镜、新衣服）的热爱和朋友羁绊；负面帖主要聚焦活动bug未修、奖励未发和建材暗改。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">相机运镜更新获吹爆</span><div class="topic-detail">「吹爆这个相机更新的运镜」直接表达对运镜功能更新的高度赞扬，玩家爱了爱了。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">新头套与服装设计好评</span><div class="topic-detail">「心动小镇新头套好好看呀~」「服装店更新啦！这个小背心好看！」集中夸赞新外观，满意度高。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">太空战舰等新元素受捧</span><div class="topic-detail">「太空战舰太帅了」展示对科幻风家具的惊叹。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">朋友陪伴与温馨感谢</span><div class="topic-detail">「我和我心爱的朋友们谢谢你们的陪伴」用爱心感谢游戏好友，社交成为情感支柱。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">冬日旅拍进度BUG未修复</span><div class="topic-detail">「冬日旅拍查看进度BUG（卡死）更新后也没修」直接打脸官方更新，玩家感到气愤和失望。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">奖励未发放与组队礼包问题</span><div class="topic-detail">「前几天组队活动不是说结束后奖励会自动下发到邮箱吗，为什么我还没有领到」质疑运营发奖效率，不满积累。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">宠物跟随机制与烹饪干扰</span><div class="topic-detail">「设置烹饪时宠物不靠近，请问开发这很难吗？」质问官方为何不解决宠物挡路问题，语气讽刺。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">建材暗改与良性bug修复</span><div class="topic-detail">「日本人说话这么好使？」强烈不满修良性bug而恶性bug拖延，指责区别对待，情绪愤怒。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-03-04</span>
+            <span class="card-stats">
+                <span>观点帖 33 条</span>
+                <span class="card-score-tag">信号分 70.15</span>
+                <span class="card-overview-preview">正面帖大量涌现冰雪季的诗意赞美和拍照分享；负面帖则涉及冬日活动bug、材料丢失和钓鱼概率等问题。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖大量涌现冰雪季的诗意赞美和拍照分享；负面帖则涉及冬日活动bug、材料丢失和钓鱼概率等问题。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">冰雪季浪漫场景诗意分享</span><div class="topic-detail">多条帖子用优美文字描绘冰雪季，如「心动小镇冰雪季的风，把温泉山北麓吹成了童话」，称赞冰面光、远处海，期待冬约。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">企鹅装扮与可爱元素</span><div class="topic-detail">「也是一只超可爱的小企鹅了🐧」展示企鹅装扮，玩家用「超可爱」等词热烈表达喜爱。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">家具特效与建造巧思</span><div class="topic-detail">「这期奖池里面的水池那个萤火虫特效好好看，好适合古风的建造」发掘家具设计美感，积极规划家园。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">多萝西服装店新衣服</span><div class="topic-detail">「太喜欢我的厨房了」及多种穿搭分享展现玩家对创意搭配的投入。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">冬日旅拍活动卡死</span><div class="topic-detail">「冬日旅拍活动点进去就卡BUG」反映活动页面存在严重BUG无法参与，催促修复，错过活动焦虑。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">钓鱼概率极低五星难出</span><div class="topic-detail">「120条仍无五星」愤怒质问「心动小镇你有意思吗？」，对五星爆率极其不满，钓鱼体验糟糕。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">宠物交互按钮消失</span><div class="topic-detail">「好无语=_=，宠物的交互按钮消失好几天了，偏偏今天有个逗猫的任务，小镇你赔我扭蛋！」因BUG无法完成任务，愤而索赔。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">家具丢失与空白唱片</span><div class="topic-detail">「在家具店买完家具回到家发现显示背包满了，背包里还没有刚买的家具」及「花八千买了4个空白唱片」投诉虚假价值，失望透顶。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-03-03</span>
+            <span class="card-stats">
+                <span>观点帖 34 条</span>
+                <span class="card-score-tag">信号分 73.88</span>
+                <span class="card-overview-preview">正面帖围绕节日活动、隐藏称号和穿搭展开，喜庆氛围浓厚；负面帖则因元宵无福利、背包清零和强制指引问题发难。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖围绕节日活动、隐藏称号和穿搭展开，喜庆氛围浓厚；负面帖则因元宵无福利、背包清零和强制指引问题发难。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">春节与元宵活动喜庆分享</span><div class="topic-detail">「今年又是在小镇和大家一起过春节的一年！🥰」描绘放烟花、吃年夜饭等情景，还有「元宵节快乐」邀约放花灯，玩家沉浸在节日气氛中。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">隐藏称号与成就达成喜悦</span><div class="topic-detail">「这个隐藏称号终于获得了，太不容易了」分享拿称号的艰辛与快乐，体现游戏探索的成就感。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">穿搭与闺蜜日常</span><div class="topic-detail">「美羊羊头发搭配来啦！」「帅帅的干弟和帅帅的朋友」等展示社交与装扮乐趣，玩家互动活跃。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">攻略与资源分享</span><div class="topic-detail">「雨天来啦」一帖长篇攻略并附大量安利标签，传递热心助人的正面能量。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">元宵节零福利引不满</span><div class="topic-detail">「元宵节快乐！今天是元宵节…小镇竟然啥福利都没有。就不能给个汤圆食谱吗？」明确表达对节日无活动的失望，认为运营缺乏诚意。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">背包与物品全部丢失</span><div class="topic-detail">「无敌了我背包啥的全没了」反映严重道具丢失，玩家暴怒，游戏数据安全问题凸显。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">强制任务指引引反感</span><div class="topic-detail">有玩家愤怒抗议动物其他都死完了吗非要让我去和企鹅互动，我偏不喂！这个委托不做也罢！』对缺乏自由度的指引怒火中烧。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">闪退与卡退问题</span><div class="topic-detail">「怎么一直卡退？？？」简短抱怨闪退频繁，严重影响游玩连续性。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-03-02</span>
+            <span class="card-stats">
+                <span>观点帖 31 条</span>
+                <span class="card-score-tag">信号分 64.26</span>
+                <span class="card-overview-preview">正面帖主要围绕抽卡欧气、闺蜜互动和温馨教程展开；负面帖则聚焦bug、保底机制和物品设计吐槽。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖主要围绕抽卡欧气、闺蜜互动和温馨教程展开；负面帖则聚焦bug、保底机制和物品设计吐槽。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">单抽出奇迹与欧气炫耀</span><div class="topic-detail">「单抽出头发！」「头发运气王！白嫖头发太爽啦！」等帖兴高采烈展示免费抽中心仪物品，玩家互相接好运，抽卡欧气贴热度高。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">闺蜜与社交甜蜜时刻</span><div class="topic-detail">「和闺蜜，一起看，流星雨」「如果生活有开关，那一定是姐妹的出现」等帖以诗意语言描述与好友共度的美好，情感细腻。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">教程与家园分享</span><div class="topic-detail">「阳光露台教程」「终于建好啦还好有白老师详细教程」展现玩家乐于分享搭建心得，获建完成充满成就感。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">可爱系物品与角色赞美</span><div class="topic-detail">「没人懂这双鞋子吗」「羽毛宅，你是个人物👍🏻」「卡哇伊」等帖子表达对游戏角色和物品的喜爱，语气活泼。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">抽卡保底与概率吐槽</span><div class="topic-detail">「合理吗 奖池108抽了已经紫色还不全」「开服玩家永远保底」等帖子表达对抽卡系统失望，感觉被针对，保底问题持续受到指责。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">BUG频发导致功能异常</span><div class="topic-detail">「心动小镇BUG」「官方解释一下？退出重登还是这个界面？」等帖反映游戏界面卡死、无法操作，玩家要求给反应，情绪不满。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">月卡蓝钻被吞</span><div class="topic-detail">有玩家详述月卡结束后应补发的蓝钻和展演通票没有到账，多次遇到，联系客服需等12小时，感到着急和失望。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">男女装设计与被吐槽</span><div class="topic-detail">「新奖池男头真的像流浪汉吗？」质疑新发型设计，另有「手持物和手持物之间亦有差距」暗指物品品质参差，对外观细节不满。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-03-01</span>
+            <span class="card-stats">
+                <span>观点帖 48 条</span>
+                <span class="card-score-tag">信号分 70.27</span>
+                <span class="card-overview-preview">正面帖以炫耀成就、分享可爱搭配和温馨互动为主；负面方向则围绕社交孤独、账号丢失、保底机制和爆率问题爆发。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖以炫耀成就、分享可爱搭配和温馨互动为主；负面方向则围绕社交孤独、账号丢失、保底机制和爆率问题爆发。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">企鹅等级与可爱宠物展示</span><div class="topic-detail">「你怎么知道我企鹅4级了呢」以凡尔赛口吻炫耀企鹅培养成果，玩家情绪自豪得意；另「萌物」帖分享可爱小狗企鹅，收获一众夸赞。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">服装搭配与发型好评</span><div class="topic-detail">「哎呦喂！我鞋真好看！」「超级喜欢这个发型」「啊啊黄色这套树屋家具也很戳我！！」等帖子用惊叹语气表达对服装、发型、家具的强烈喜爱。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">温馨互动与汤圆分享</span><div class="topic-detail">「孩儿们来吃大汤圆啦～！不要抢一个一个来～」展现游戏中热闹友爱的互动，这种分享场景让玩家感到温暖。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">古早背包盘点与怀旧</span><div class="topic-detail">「盘点心动小镇古早非常之可爱的背包你有几个」发起回忆杀，玩家积极参与，对早期物品的喜爱与怀念之情溢出。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">抽卡保底与骗氪愤怒</span><div class="topic-detail">「纯纯大保底啊，心动我恨你」「次次大保底，骗钱游戏，恶心🤮」等帖情绪爆发，玩家因连续保底失望至极，用「恨」「恶心」等词谴责。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">账号安全问题与丢失</span><div class="topic-detail">「我都服了，我就是一个月没玩我的号找不到了不是不登录就找不到号了吗？」以及类似帖子，玩家反映账号容易被清掉，感到愤怒无助。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">社交环境恶劣与低俗骚扰</span><div class="topic-detail">有玩家曝光被追着加好友后问交往，拒绝后遭到辱骂，直呼「环境真的烂透了」，对游戏内低龄化和骚扰行为极度厌恶。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">物品无法售卖与背包爆满</span><div class="topic-detail">「为什么破壳蛋仔卖不了，这个拼图也卖不了」抱怨大量物品不可出售，且占用背包空间，玩家感到非常不便。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-02-28</span>
+            <span class="card-stats">
+                <span>观点帖 75 条</span>
+                <span class="card-score-tag">信号分 77.65</span>
+                <span class="card-overview-preview">正面帖数量大幅领先，冰雪季美照、惬意生活、搭配和好友互动占据主流；负面帖则集中在宠物干扰、图鉴清零、活动卡顿和抽卡抱怨上。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖数量大幅领先，冰雪季美照、惬意生活、搭配和好友互动占据主流；负面帖则集中在宠物干扰、图鉴清零、活动卡顿和抽卡抱怨上。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">冰雪季拍照与美图分享</span><div class="topic-detail">「冰雪季美照来喽～」「早上6点的小镇太漂亮了」等帖子晒出游戏风景，玩家用「美」「好看」等词赞美，社区像摄影展。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">惬意生活与氛围好評</span><div class="topic-detail">「每天在心动小镇发发呆也是很惬意的」这类帖子描绘悠闲日常，玩家表达身心放松，对游戏治愈感高度认可。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">滑冰与牵手社交乐趣</span><div class="topic-detail">「可以和好朋友牵手一起滑啦，快来一起玩呀」热情邀请滑冰，强调好友互动乐趣，对社交玩法赞不绝口。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">搭配与可爱元素展示</span><div class="topic-detail">「棒棒的搭配」「这个粉色猪猪装真的好可爱🥺」等帖展示穿搭，玩家用「可爱」「好看」等词分享，搭配成为核心乐趣之一。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">宠物跟随与卡位干扰</span><div class="topic-detail">「心动小镇，你就不能给家园里的宠物单独设置一个区域吗，宠物老是跟着你，卡你位置，真的很恶心人」强烈表达宠物干扰种菜、做饭的不满，用词激烈。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">活动纪念清零与数据丢失</span><div class="topic-detail">有玩家悲痛表示「所有活动动作全部都没了…全部清零了，没意义了」，对长期积攒的纪念品消失感到绝望，情绪崩溃。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">抽卡不出特定物品</span><div class="topic-detail">「感觉好命苦啊！ᴖᗜᴖ 我只是想要个露台有错吗？」以及「想要的一直不来，不想要的一直来」反映抽卡定向获取难，玩家疲惫又无奈。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">bug导致事件失败</span><div class="topic-detail">「心动小镇最新bug」描述开虫事件卡在车上，重进后事件消失，对此bug失望寒心，要求修复。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-02-27</span>
+            <span class="card-stats">
+                <span>观点帖 49 条</span>
+                <span class="card-score-tag">信号分 70.1</span>
+                <span class="card-overview-preview">正面帖依旧热烈，玩家盛赞好玩和可爱，且出现零氪炫耀；负面帖中卡顿、闪退、爆率与账号问题较为突出。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖依旧热烈，玩家盛赞好玩和可爱，且出现零氪炫耀；负面帖中卡顿、闪退、爆率与账号问题较为突出。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">冰雪季活动备受好评</span><div class="topic-detail">「#心动小镇冰雪季特别好玩」「开心开心」「可以可以」等帖子密集出现，玩家用简短重复的正面词句表达对冰雪季的喜爱，情绪高涨。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">小镇送蓝钻等福利惊喜</span><div class="topic-detail">「小镇又送蓝钻啦！」一帖兴奋宣告游戏发放福利，玩家用感叹语气传递惊喜，对运营大方行为表示赞赏。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">可爱动物与萌系角色</span><div class="topic-detail">「潮流季新上的动物很可爱 小镇发展家们也很萌」「好可爱」等帖展示游戏萌物，玩家沉浸在可爱氛围中。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">零氪好友号权威炫耀</span><div class="topic-detail">「吓哭了！朋友的零氪号竟如此权威」以惊叹口吻展示零氪账号的强大，暗示游戏对免费玩家友好，引发羡慕与自豪。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">闪退与卡顿极度影响体验</span><div class="topic-detail">「心动小镇，我请问呢？每天进去不是闪退就是做饭卡」详细哭诉闪退和卡顿导致食物做糊，希望补偿；另有多帖反映卡顿问题，玩家「实在忍不了了」。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">爆率与抽卡严重不满</span><div class="topic-detail">「能不能改改你那概率」「这概率我真的服了，心动小镇概率调的什么鬼」等直接质问，玩家对抽卡概率忍无可忍，语气愤怒。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">账号切换与登录困难</span><div class="topic-detail">「要退游用另一个手机登录，但忘了用的哪个手机号」引发焦虑，另有玩家反映更新后音乐会进不去，这类功能故障造成参与障碍。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">代购欺骗与社区不良行为</span><div class="topic-detail">「挂人自行避雷避免遭害」曝光有玩家让别人代购不给食物，抱怨「让我代购也没给」，对社区中的欺诈行为感到气愤，破坏社交信任。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-02-26</span>
+            <span class="card-stats">
+                <span>观点帖 62 条</span>
+                <span class="card-score-tag">信号分 67.34</span>
+                <span class="card-overview-preview">正面帖依然以极简赞美为主，围绕好玩、萌、自由建造；负面帖数量有所上升，聚焦猫宠物干扰、抽卡概率、信件收藏上限和社区不良行为。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖依然以极简赞美为主，围绕好玩、萌、自由建造；负面帖数量有所上升，聚焦猫宠物干扰、抽卡概率、信件收藏上限和社区不良行为。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">纯粹的喜爱表达泛滥</span><div class="topic-detail">「心动小镇好玩」「心动小镇真的特别好玩」「超级好玩」等短语高频出现，玩家用最直白的方式宣泄对游戏的正面情绪，完全不掺杂负面。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">建造自由与好友合作</span><div class="topic-detail">「建造什么的都很自由」肯定游戏核心玩法，另有「浇水搭子dd」招募群友共享建房心得、组织钓鱼捕虫等活动，展现极强的社交凝聚力。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">拍照与萌系外观分享</span><div class="topic-detail">「好看，记得点赞」「我拍的照咋就这么好看，爱你老己」等帖展示拍照成果，自恋又开心；「好萌」等简短评价也体现对画风的满意。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">喜羊羊联动互动乐趣</span><div class="topic-detail">「喜羊羊联名的互动，每天都有不同的角色卡，非常有意思嘞」一帖为联动正名，玩家觉得互动玩法有趣，积极邀请他人体验。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">猫咪干扰做饭成众怒</span><div class="topic-detail">「关于小猫真的碍事」详述猫在做饭时卡位，希望官方增加不让猫碍事的功能；此问题被多帖提及，玩家表示「干也干不了」，十分烦心。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">抽卡爆率与重复掉落</span><div class="topic-detail">「爆率好小，，抽了50多一个彩没有都是紫」以及「我都换了了，又抽出来了」等反映抽卡体验极差，重复率高且彩光难见，玩家感到被玩弄。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">信件收藏上限引发遗憾</span><div class="topic-detail">有玩家发长文吐槽写信收藏有上限，导致回忆无法保留，称「本来这个游戏就是换了一个世界活着，那么为什么限制收藏呢？」言语中充满失望，要求开发者查看。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">恶意玩家与社区环境</span><div class="topic-detail">「今日三次事件（2）」曝光有玩家用画板堵门欺负萌新，发帖者设置好友开门自卫，并谴责这种行为；另有「句句没脏话，句句在骂人」暗讽社区交流环境乌烟瘴气。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-02-25</span>
+            <span class="card-stats">
+                <span>观点帖 68 条</span>
+                <span class="card-score-tag">信号分 69.66</span>
+                <span class="card-overview-preview">正面帖数量仍多，新宠企鹅和拼图玩法受喜爱；负面内容围绕抽卡保底、社交恶劣体验、地图面积和客户端问题展开。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖数量仍多，新宠企鹅和拼图玩法受喜爱；负面内容围绕抽卡保底、社交恶劣体验、地图面积和客户端问题展开。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">新宠企鹅与小动物玩法</span><div class="topic-detail">「小镇新宠上线」一帖兴奋介绍企鹅可爱好摸，期待下一只新宠；另有「森林也有猫了！」分享发现猫咪的惊喜，玩家对小动物生态的丰富度表示满意。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">拼图玩法备受好评</span><div class="topic-detail">「超喜欢拼图🧩」直接表达对拼图的喜爱，此类休闲小游戏受到玩家热情接纳，成为新的肝点也是乐点。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">建造自由度与创想称赞</span><div class="topic-detail">「心动小镇咋那么好玩，有创想」「建造什么的都很自由」等帖子肯定游戏提供的高自由度建造，玩家认为游戏有创意，情绪积极。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">温馨小窝与组队乐趣</span><div class="topic-detail">「温馨小窝」「快来一起组队吧！」展现玩家对家园布置的满足感和联机社交的渴望，社区内充满「一起玩」的友好信号。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">抽卡保底与爆率过低</span><div class="topic-detail">「抽啥啥保底，以后啥也不抽了」「又是保底出，好黑啊！」等帖继续轰炸，玩家抱怨「101抽才1个彩」，对当前爆率忍无可忍，部分人决定止损。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">社交负面体验与乞讨行为</span><div class="topic-detail">有玩家挂人避雷，称对方「打卡三次，三次张嘴就要东西」，甚至遇到道德绑架，气愤表示「严重怀疑现在网上小孩子素质就是被这种人拉低的」，社区人际摩擦引发反感。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">客户端闪退与登录问题</span><div class="topic-detail">「Pc端登不进去」「已经删了又下三遍了还是不行」以及「为什么我进不去啊在线等，好急」等帖子反映多平台登录和闪退故障，严重影响游玩。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">地图太小与功能诉求</span><div class="topic-detail">「地图太小了！！！！」「官方能不能扩大地皮？急急急」呼声中露出对建造空间不足的焦虑，玩家渴望更广阔的家园区域。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-02-24</span>
+            <span class="card-stats">
+                <span>观点帖 52 条</span>
+                <span class="card-score-tag">信号分 74.77</span>
+                <span class="card-overview-preview">正面帖继续压倒性占比，冰雪季相关话题热度最高；负面帖主要曝光保底机制、BUG和奖励发放延迟，不满情绪集中。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖继续压倒性占比，冰雪季相关话题热度最高；负面帖主要曝光保底机制、BUG和奖励发放延迟，不满情绪集中。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">冰雪季活动获得满堂彩</span><div class="topic-detail">「心动心动小镇太好玩了，哈哈哈哈哈」「#心动小镇冰雪季good」「超好玩」等帖子直观表达冰雪季带来的快乐，玩家用大量感叹词和标签推荐，成为当日最热话题。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">萌系装扮与物品分享</span><div class="topic-detail">「萌萌的蘑菇派」「“眼镜”还能这么搭？！也好好看啊！！」等帖子展示可爱装扮或物品，玩家表示「萌萌的很安心」，搭配类内容引发模仿和点赞。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">兑换码与攻略爱心传递</span><div class="topic-detail">有玩家发布「2月24日位置播报」包含当日兑换码和资源位置，甚至列出新年兑换码，热心帮助他人，此类帖子体现社区互助氛围，虽内容简短但态度积极。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">舞球动作等趣味玩法好评</span><div class="topic-detail">「这个舞球动作真的太好玩了吧ฅ՞•ﻌ•՞ฅ哈哈哈」一帖引发共鸣，玩家对新动作的趣味性高度认可，用颜文字表达开心。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">联动保底问题惹怒玩家</span><div class="topic-detail">「好坑哦」「要是知道四个跳跳杆都保底出我也不是那么喜欢黑大帅了」等帖针锋相对喜羊羊联动抽卡，玩家感觉被保底机制坑害，即使有爱也心生退意。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">BUG与活动奖励未到账</span><div class="topic-detail">「组队活动星钻我没领到啊」「组队的奖励一直没发」等反馈集中，玩家焦急询问领取方式，对奖励发放延迟感到失望，也出现「今日份bug」的笼统负面帖。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">家园建造与背包管理问题</span><div class="topic-detail">「在家具店买完家具回到家发现显示背包满了，背包里还没有刚买的家具」，此类丢失物品的经历引发困惑和求助，反映出建造系统或背包机制的不便。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">游戏加载与进度卡顿</span><div class="topic-detail">「打开游戏之后进度经常卡在39%」这一典型问题被提及，玩家对加载卡顿的重复出现表示不耐烦。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-02-23</span>
+            <span class="card-stats">
+                <span>观点帖 68 条</span>
+                <span class="card-score-tag">信号分 78.72</span>
+                <span class="card-overview-preview">正面帖数创新高，围绕企鹅可爱、联动抽卡欧气、美景分享展开；负面帖则聚焦抽卡保底、偶尔的bug和游戏内容引发的无聊感。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖数创新高，围绕企鹅可爱、联动抽卡欧气、美景分享展开；负面帖则聚焦抽卡保底、偶尔的bug和游戏内容引发的无聊感。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">喜羊羊联动抽卡人品爆发</span><div class="topic-detail">「可以哦 心动小镇 喜羊羊美羊羊头发一抽中 蓝钻奖池又中」等帖子展示抽取联动物品的幸运，玩家用「爆率」等关键词表达惊喜，相互吸欧气，联动活动收获大量正面反馈。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">小企鹅等萌宠引发怜爱</span><div class="topic-detail">「小企鹅可可爱爱」「谁懂啊！它真的好可爱😍」大量帖子表达对企鹅的萌系喜爱，玩家用强烈语气和爱心表情抒发感情，形成萌宠热潮。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">游戏美景与纪念照片</span><div class="topic-detail">玩家分享情人节大拱门、极光、晚霞等截图，如「深夜和闺蜜在家里欣赏了极光，正好在头上」，称「感觉这个相片会是一生的回忆」，对游戏画面和氛围的赞美真诚而温暖。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">组队邀请与社交活跃</span><div class="topic-detail">「快点加入吧」「大家快来加入我的队伍」等召唤类帖子频现，玩家积极招募队友，与「好友贴贴」的社交玩法受青睐，体现出社区的高互动意愿。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">抽卡保底持续引不满</span><div class="topic-detail">「抽奖抽奖保底。捉虫子虫子保底」「97出一个好的都没有气鼠了😡」等宣泄类帖子数量不减，玩家愤怒于「保底」成为常态，甚至以「我呸我呸都呸都呸」的强烈情绪表达厌恶。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">任务与收集难度遭吐槽</span><div class="topic-detail">「为什么这些泡泡🫧刷新在这些位置压根拿不到！」以及钓鱼五星难拿齐、鸟和蝴蝶收集困难等抱怨出现，玩家感到费劲，质疑设计合理性。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">游戏氛围变冷淡与无聊</span><div class="topic-detail">「小镇是一个没有好友就会觉得没意思的游戏吗」「#心动小镇快上车！无聊了」等帖子表达孤独和内容枯竭感，部分玩家称「真真的不想玩了」，热情消退。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">暗箱操作质疑与付费不满</span><div class="topic-detail">「小镇你们是不是暗箱操作了我还用红钻抽了🌚」一帖直接怀疑概率被操纵，另有「什么玩意儿？ 边抽奖边放好运来，大保底了，然后没了」的荒诞遭遇，引发对公平性的不信任。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-02-22</span>
+            <span class="card-stats">
+                <span>观点帖 67 条</span>
+                <span class="card-score-tag">信号分 74.99</span>
+                <span class="card-overview-preview">正面帖占据主流，玩家热情分享穿搭、赞美游戏设置并邀请好友；消极情绪主要源于抽卡保底、社交衰退和频繁的卡顿bug。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">正面帖占据主流，玩家热情分享穿搭、赞美游戏设置并邀请好友；消极情绪主要源于抽卡保底、社交衰退和频繁的卡顿bug。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">游戏设置与氛围备受称赞</span><div class="topic-detail">多条帖子直接赞美「游戏设置太棒啦」「太可爱了」「治愈，特别好玩」，玩家用极简的正面词汇表达对游戏整体氛围的喜爱，情绪高昂且纯粹。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">冰雪季内容持续好评</span><div class="topic-detail">#心动小镇冰雪季#标签下出现大量「好玩」「可🉑」「好好好」等称赞，玩家对冰雪季活动表示高度认可，甚至有帖子庆祝「爆率好高，四次全中」，分享欧气。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">节日氛围与拍照技巧分享</span><div class="topic-detail">有玩家发帖「我在心动小镇和你过年」，描述游戏过年氛围舒服，并分享拍照小细节如找柔和光线、人物侧身，这类结合节日与技巧的内容展现了沉浸式喜爱。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">好友互动与联机邀请</span><div class="topic-detail">「交朋友什么都不卡」等帖子称赞社交流畅，还有玩家积极寻找搭子共同游戏，社交体验被肯定，联机需求旺盛。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">抽卡保底与概率过低抱怨</span><div class="topic-detail">「心动小镇，你太让人失望了，抽奖概率太低了！」「不集齐下面一排 上面好像很难抽到」等帖子集中吐槽抽卡机制，玩家对保底和概率感到强烈不满，部分人称「抽啥啥保底，以后啥也不抽了」。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">玩家流失与社交衰退的怀旧</span><div class="topic-detail">有老玩家发长文感慨好友都不上线，甚至自己都断游过，联动任务难找队友，怀念以前随便串门的氛围，表示「可能我也会在某个时候彻底断游吧」，流露出失望与孤独。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">闪退、卡顿与登录困难</span><div class="topic-detail">玩家反映「进不去了，官方！我一进去它就给我卡出来了」「为什么玩的时候卡的不行」，多人遭遇闪退、卡顿，影响正常游戏，对优化问题持续抱怨。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">BUG影响任务完成</span><div class="topic-detail">「安妮出bug了吗」「对话框没了，任务交不了」，此类NPC消失或交互故障的反馈出现，直接阻碍任务进度，玩家因此感到烦躁。</div></div>
+        </div>
+    </div>
+    <div class="daily-card">
+        <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+            <span class="card-date">2026-02-21</span>
+            <span class="card-stats">
+                <span>观点帖 57 条</span>
+                <span class="card-score-tag">信号分 71.39</span>
+                <span class="card-overview-preview">社区氛围以直白喜爱为主，大量玩家发帖表达对游戏好玩、可爱的纯粹赞赏；负面声音集中在抽卡保底、交互卡顿和活动体验不佳。</span>
+            </span>
+            <span class="card-arrow">▼</span>
+        </div>
+        <div class="card-body">
+            <div class="overview-line">社区氛围以直白喜爱为主，大量玩家发帖表达对游戏好玩、可爱的纯粹赞赏；负面声音集中在抽卡保底、交互卡顿和活动体验不佳。</div>
+            <div class="pos-label">正面话题</div><div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">玩家热情安利游戏</span><div class="topic-detail">当日多条帖子直接高呼「心动小镇太好玩了」「真好玩」等，如「我玩了心动小镇，他像一个真人的形象，特别好玩」，并附上#心动小镇安利#等标签，玩家以极度喜爱之情推荐他人游玩，此类纯推荐型帖子热度最高。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">限时企鹅小动物引发萌潮</span><div class="topic-detail">新上线的限时动物企鹅成为焦点，玩家发帖称「好可爱的企鹅」「太呆萌了」，甚至联想到动物园扶企鹅的趣事，对企鹅滑倒等细节表现出浓厚兴趣，期待下一个限时动物，情感十分积极。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">穿搭分享与角色可爱秀</span><div class="topic-detail">多条帖子展示游戏内穿搭或角色萌照，如「直视我的眼睛~！！」分享穿搭，「女儿好可爱」贴出角色图，玩家用「卡哇」「萌萌哒」等词形容，这类分享帖成为社区互动热点。</div></div>
+<div class="pos-topic"><span class="topic-dot"></span><span class="topic-name">新赛季内容受好评</span><div class="topic-detail">玩家直接称赞「新赛季很好玩」「心动小镇冰雪季特别好玩」，对新赛季的玩法或氛围给予肯定，虽描述简略但情绪高涨，反映出对版本更新的满意。</div></div>
+            <div class="neg-label">负面话题</div><div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">抽卡保底与概率遭吐槽</span><div class="topic-detail">「一百万金币毛都没有」「依旧大保底」等帖子集中抱怨抽奖投入与回报不成正比，有玩家花百万金币未出响，情绪激动；另有玩家反复遭遇大保底，直呼「依旧大保底👊🏻」，愤怒与失望情绪明显。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">交互机制引发烹饪干扰</span><div class="topic-detail">玩家反映宠物或陌生人阻碍烹饪，「狗挡着我烹饪！显示交互存在障，结果饭糊了」以及陌生人拿走做好的温泉蛋，玩家认为「离谱不」，对这类交互设计感到不满，呼吁修改。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">活动体验差与bug困扰</span><div class="topic-detail">玩家抱怨冰雪季活动「堵得很」，百鸟归巢事件「一下午开了十多局，一局第二阶段都没触发」，还有对话看不到等诡异bug，引发「这又是什么新型bug？」的困惑，对活动流畅度和bug修复表示失望。</div></div>
+<div class="neg-topic"><span class="topic-dot"></span><span class="topic-name">下载与卡顿优化问题</span><div class="topic-detail">有玩家反映「好卡，下了三个小时」，突出下载或游戏过程中的卡顿问题，虽数量较少但反映了部分玩家的基础体验障碍，不满情绪直接。</div></div>
+        </div>
+    </div>
+</div>
+
+<div class="footer">
+    Powered by DeepSeek AI · 数据来源: TapTap论坛 · 自动生成
+</div>
+
+<script>
+Chart.defaults.color = '#94a3b8';
+Chart.defaults.borderColor = 'rgba(255,255,255,0.08)';
+Chart.defaults.font.family = '-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif';
+
+const dates = ["2026-02-21", "2026-02-22", "2026-02-23", "2026-02-24", "2026-02-25", "2026-02-26", "2026-02-27", "2026-02-28", "2026-03-01", "2026-03-02", "2026-03-03", "2026-03-04", "2026-03-05", "2026-03-06", "2026-03-07", "2026-03-08", "2026-03-09", "2026-03-10", "2026-03-11", "2026-03-12", "2026-03-13", "2026-03-14", "2026-03-15", "2026-03-16", "2026-03-17", "2026-03-18", "2026-03-19", "2026-03-20", "2026-03-21", "2026-03-22", "2026-03-23", "2026-03-24", "2026-03-25", "2026-03-26", "2026-03-27", "2026-03-28", "2026-03-29", "2026-03-30", "2026-03-31", "2026-04-01", "2026-04-02", "2026-04-03", "2026-04-04", "2026-04-05", "2026-04-06", "2026-04-07", "2026-04-08", "2026-04-09", "2026-04-10", "2026-04-11", "2026-04-12", "2026-04-13", "2026-04-14", "2026-04-15", "2026-04-16", "2026-04-17", "2026-04-18", "2026-04-19", "2026-04-20", "2026-04-21", "2026-04-22", "2026-04-23", "2026-04-24", "2026-04-25", "2026-04-26", "2026-04-27", "2026-04-28", "2026-04-29", "2026-04-30", "2026-05-01", "2026-05-02", "2026-05-03", "2026-05-04", "2026-05-05", "2026-05-06", "2026-05-07", "2026-05-08", "2026-05-09", "2026-05-10", "2026-05-11", "2026-05-12", "2026-05-13", "2026-05-14", "2026-05-15", "2026-05-16", "2026-05-17", "2026-05-18", "2026-05-19", "2026-05-20", "2026-05-21"];
+const filteredScores = [71.39, 74.99, 78.72, 74.77, 69.66, 67.34, 70.1, 77.65, 70.27, 64.26, 73.88, 70.15, 72.06, 64.84, 71.41, 71.0, 78.03, 69.85, 73.82, 75.93, 63.62, 67.1, 71.17, 61.25, 68.04, 76.13, 64.74, 61.61, 65.17, 65.33, 61.19, 71.29, 49.76, 65.12, 66.65, 76.34, 69.35, 67.68, 79.03, 76.36, 68.53, 81.44, 72.25, 70.65, 75.41, 72.33, 68.75, 73.82, 85.64, 72.75, 65.52, 74.6, 81.18, 59.82, 71.25, 71.07, 63.77, 74.04, 59.44, 72.14, 54.35, 76.52, 67.83, 68.12, 76.75, 84.21, 83.82, 65.94, 75.2, 75.55, 64.21, 72.19, 67.91, 66.95, 82.35, 76.88, 66.78, 74.49, 66.61, 74.03, 71.27, 76.92, 79.36, 75.09, 70.61, 72.48, 69.0, 74.94, 68.89, 76.0];
+const counts = [224, 314, 368, 201, 199, 184, 158, 215, 148, 112, 105, 115, 120, 139, 153, 165, 101, 93, 88, 110, 116, 159, 119, 60, 72, 47, 54, 81, 172, 124, 62, 64, 73, 145, 107, 210, 170, 74, 181, 95, 128, 136, 279, 199, 202, 83, 57, 48, 50, 145, 83, 57, 44, 53, 107, 103, 114, 99, 52, 61, 54, 65, 59, 161, 109, 63, 54, 54, 105, 121, 113, 106, 116, 83, 51, 106, 53, 136, 113, 70, 75, 48, 46, 65, 112, 86, 52, 60, 43, 18];
+const positive = [39, 54, 59, 41, 47, 40, 34, 61, 35, 18, 26, 22, 34, 33, 36, 40, 24, 23, 21, 35, 22, 31, 20, 8, 15, 11, 12, 12, 32, 22, 11, 15, 7, 45, 31, 72, 42, 16, 51, 28, 31, 50, 75, 46, 60, 22, 14, 16, 10, 42, 14, 20, 14, 9, 36, 28, 17, 21, 9, 16, 7, 16, 8, 23, 22, 14, 10, 10, 31, 36, 22, 19, 22, 13, 14, 38, 11, 31, 23, 23, 21, 10, 10, 17, 20, 22, 8, 13, 6, 4];
+const negative = [18, 13, 9, 11, 21, 22, 15, 14, 13, 13, 8, 11, 14, 22, 15, 16, 5, 10, 7, 10, 15, 19, 10, 8, 8, 4, 7, 11, 21, 14, 10, 6, 14, 31, 15, 18, 21, 9, 11, 5, 12, 4, 21, 19, 18, 8, 6, 6, 1, 14, 9, 5, 3, 8, 19, 13, 13, 6, 9, 5, 10, 5, 4, 9, 6, 0, 1, 6, 9, 8, 12, 8, 12, 6, 3, 10, 7, 10, 13, 8, 9, 3, 1, 5, 8, 7, 3, 5, 3, 1];
+const neutral = [167, 247, 300, 149, 131, 122, 109, 140, 100, 81, 71, 82, 72, 84, 102, 109, 72, 60, 60, 65, 79, 109, 89, 44, 49, 32, 35, 58, 119, 88, 41, 43, 52, 69, 61, 120, 107, 49, 119, 62, 85, 82, 183, 134, 124, 53, 37, 26, 39, 89, 60, 32, 27, 36, 52, 62, 84, 72, 34, 40, 37, 44, 47, 129, 81, 49, 43, 38, 65, 77, 79, 79, 82, 64, 34, 58, 35, 95, 77, 39, 45, 35, 35, 43, 84, 57, 41, 42, 34, 13];
+
+// 观点信号评分趋势图
+new Chart(document.getElementById('scoreChart'), {
+    type: 'line',
+    data: {
+        labels: dates,
+        datasets: [{
+            label: '观点信号评分',
+            data: filteredScores,
+            borderColor: '#60a5fa',
+            backgroundColor: 'rgba(96,165,250,0.15)',
+            fill: true,
+            tension: 0.3,
+            pointRadius: 4,
+            pointBackgroundColor: '#60a5fa',
+            borderWidth: 2,
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { labels: { usePointStyle: true } },
+            tooltip: {
+                callbacks: {
+                    label: ctx => ctx.dataset.label + ': ' + (ctx.parsed.y !== null ? ctx.parsed.y + ' 分' : '无数据')
+                }
+            }
+        },
+        scales: {
+            y: {
+                min: 38, max: 96,
+                ticks: { callback: v => v + '分' },
+                grid: { color: 'rgba(255,255,255,0.04)' }
+            },
+            x: {
+                grid: { display: false },
+                ticks: { maxTicksLimit: 20 }
+            }
+        },
+        interaction: { intersect: false, mode: 'index' }
+    }
+});
+
+// 发帖数量图
+new Chart(document.getElementById('countChart'), {
+    type: 'bar',
+    data: {
+        labels: dates,
+        datasets: [{
+            label: '发帖数',
+            data: counts,
+            backgroundColor: 'rgba(96,165,250,0.5)',
+            borderColor: '#60a5fa',
+            borderWidth: 1,
+            borderRadius: 4,
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { labels: { usePointStyle: true } },
+        },
+        scales: {
+            y: {
+                min: 0, max: 473,
+                grid: { color: 'rgba(255,255,255,0.04)' }
+            },
+            x: {
+                grid: { display: false },
+                ticks: { maxTicksLimit: 20 }
+            }
+        },
+        interaction: { intersect: false, mode: 'index' }
+    }
+});
+
+// 情绪分布图
+new Chart(document.getElementById('sentimentChart'), {
+    type: 'bar',
+    data: {
+        labels: dates,
+        datasets: [
+            {
+                label: '正面',
+                data: positive,
+                backgroundColor: 'rgba(52,211,153,0.6)',
+                borderColor: '#34d399',
+                borderWidth: 1,
+            },
+            {
+                label: '中性',
+                data: neutral,
+                backgroundColor: 'rgba(251,191,36,0.6)',
+                borderColor: '#fbbf24',
+                borderWidth: 1,
+            },
+            {
+                label: '负面',
+                data: negative,
+                backgroundColor: 'rgba(248,113,113,0.6)',
+                borderColor: '#f87171',
+                borderWidth: 1,
+            }
+        ]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { labels: { usePointStyle: true } },
+        },
+        scales: {
+            x: {
+                stacked: true,
+                grid: { display: false },
+                ticks: { maxTicksLimit: 20 }
+            },
+            y: {
+                stacked: true,
+                min: 0, max: 473,
+                grid: { color: 'rgba(255,255,255,0.04)' }
+            }
+        },
+        interaction: { intersect: false, mode: 'index' }
+    }
+});
+</script>
+</body>
+</html>
