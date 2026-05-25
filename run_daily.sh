@@ -166,8 +166,11 @@ echo "  ✓ 已复制 output/visualization.html → docs/index.html"
 echo ""
 echo "[步骤4] 推送到 GitHub"
 
-# GitHub 推送不走代理（代理可能导致 TLS 握手失败）
-echo "  (git 操作直连，不使用代理)"
+# 推送前检测代理
+ensure_proxy || {
+    echo "  ✗ 代理不可用，无法推送"
+    exit 1
+}
 
 # 配置 git 用户
 if ! git config user.name >/dev/null 2>&1; then
@@ -183,9 +186,6 @@ if [ -f "$GITHUB_TOKEN_FILE" ]; then
     TOKEN=$(cat "$GITHUB_TOKEN_FILE" | tr -d '\n')
     git remote set-url origin "https://${TOKEN}@github.com/as167888/forum-xdtown.git"
 fi
-
-# git 操作时清除代理，避免 TLS 问题
-unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY
 
 # 拉取远程最新代码
 echo "  拉取远程最新代码..."
