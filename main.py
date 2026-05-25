@@ -84,7 +84,7 @@ def print_menu():
         ("1", "爬取帖子列表", "从论坛列表页获取所有帖子链接"),
         ("2", "爬取帖子详情", "爬取每个帖子的标题/作者/时间/内容"),
         ("3", "AI情感评分", "通过DeepSeek API对帖子进行评分(1-100)"),
-        ("4", "一键全流程", "列表→详情→评分 全自动执行"),
+        ("4", "一键全流程", "列表→详情→评分→可视化 全自动执行"),
         ("5", "生成可视化网页", "生成每日舆情评分趋势图表"),
         ("6", "浏览数据库", "查看/搜索数据库中的帖子和统计"),
         ("7", "数据库统计", "显示数据库整体统计信息"),
@@ -373,7 +373,7 @@ def func_analyze(interactive=True, limit=None):
 def func_auto(interactive=True, max_posts=None, start_date=None,
                end_date=None, last_days=None):
     """功能4: 一键全流程"""
-    print_stage("一键全流程: 列表(API) → 详情 → 评分")
+    print_stage("一键全流程: 列表(API) → 详情 → 评分 → 可视化")
     print()
 
     start_date, end_date, cancelled = select_date_range(
@@ -415,12 +415,18 @@ def func_auto(interactive=True, max_posts=None, start_date=None,
     scraper.scrape_all_details(session, posts if posts else None)
 
     # === 步骤3: AI评分 ===
-    print_stage("步骤3/3: AI情感评分")
+    print_stage("步骤3/4: AI情感评分")
     unscored = db.get_unscored_posts()
     if unscored:
         analyzer.analyze_all_unscored(client, delay=1)
     else:
         print("  没有待评分的帖子")
+
+    # === 步骤4: 生成可视化 ===
+    print_stage("步骤4/4: 生成可视化网页")
+    path = visualizer.generate_visualization_html()
+    if path:
+        print(f"  可视化网页: {path}")
 
     session.close()
 
@@ -665,7 +671,7 @@ def build_parser():
                             help="最多评分数量 (默认全部)")
 
     # ---- auto ----
-    p_auto = subparsers.add_parser("auto", help="一键全流程 (列表→详情→评分)")
+    p_auto = subparsers.add_parser("auto", help="一键全流程 (列表→详情→评分→可视化)")
     p_auto.add_argument("--max-posts", type=int, default=None,
                          help="最多爬取帖子数 (默认500, 0=全部)")
     p_auto.add_argument("--start-date", type=str, default=None,

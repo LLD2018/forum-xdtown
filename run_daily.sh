@@ -151,20 +151,16 @@ if [ "$SUCCESS" = false ]; then
     exit 1
 fi
 
-# --- 步骤2: 生成可视化网页 ---
+# --- 步骤2: 复制到 docs/ (GitHub Pages) ---
+# 可视化网页已由 main.py auto 步骤4 生成
 echo ""
-echo "[步骤2] 生成可视化网页"
-python3 main.py visualize
-
-# --- 步骤3: 复制到 docs/ (GitHub Pages) ---
-echo ""
-echo "[步骤3] 复制 HTML 到 docs/ 目录"
+echo "[步骤2] 复制 HTML 到 docs/ 目录"
 cp -f output/visualization.html docs/index.html
 echo "  ✓ 已复制 output/visualization.html → docs/index.html"
 
-# --- 步骤4: Git 提交并推送 ---
+# --- 步骤3: Git 提交并推送 ---
 echo ""
-echo "[步骤4] 推送到 GitHub"
+echo "[步骤3] 推送到 GitHub"
 
 # 推送前检测代理
 ensure_proxy || {

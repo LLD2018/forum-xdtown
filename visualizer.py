@@ -327,10 +327,17 @@ def _render_daily_cards(summaries, filtered_counts, dates, daily_data):
 # ---- 可视化 HTML 生成 ----
 
 def generate_visualization_html():
-    """生成可视化网页"""
+    """生成可视化网页（排除当天不完整数据）"""
     daily_data = aggregate_daily_scores()
     if not daily_data:
         print("  没有可可视化的数据")
+        return None
+
+    # 排除当天数据（当天数据可能爬取不全）
+    today_str = datetime.now().strftime("%Y-%m-%d")
+    daily_data = [d for d in daily_data if d["date"] != today_str]
+    if not daily_data:
+        print("  排除当天数据后无可可视化的数据")
         return None
 
     os.makedirs(OUTPUT_DIR, exist_ok=True)
