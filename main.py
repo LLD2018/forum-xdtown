@@ -4,14 +4,14 @@
   游戏: 心动小镇 (App ID: 45213)
 ============================================================
 
-主程序 - 交互式控制台菜单
-提供爬取、评分、可视化、数据浏览等功能的统一入口
+主程序 - 支持交互式菜单和命令行参数化运行
 """
+import argparse
 import os
 import sys
 import time
 import webbrowser
-from datetime import datetime
+from datetime import datetime, date, timedelta
 
 # 修复Windows控制台编码问题
 if sys.platform == "win32":
@@ -56,7 +56,7 @@ def cpad(text, target_width, align="left", fill=" "):
         return text + fill * diff
     elif align == "right":
         return fill * diff + text
-    else:  # center
+    else:
         left = diff // 2
         right = diff - left
         return fill * left + text + fill * right
@@ -131,36 +131,109 @@ def press_enter():
     safe_input("\n  按回车键返回主菜单...")
 
 
+def parse_date_arg(date_str):
+    """将 YYYY-MM-DD 字符串转为 date 对象"""
+    return datetime.strptime(date_str, "%Y-%m-%d").date()
+
+
 # ============================================================
-# 功能模块
+# 功能模块（支持参数化调用 + 交互式调用）
 # ============================================================
 
-def func_scrape_list():
+def select_date_range(interactive=True, start_date=None, end_date=None,
+                       last_days=None):
+    """
+    日期范围选择
+    interactive=True 时显示菜单让用户选择
+    interactive=False 时直接使用传入参数
+    返回: (start_date, end_date, cancelled)
+    """
+    if not interactive:
+        if last_days:
+            today = date.today()
+            return today - timedelta(days=last_days), today, False
+        return start_date, end_date, False
+
+    # 交互式菜单
+    print()
+    print("  日期范围选择:")
+    print("  " + "-" * 40)
+    print("  [1] 不限制日期 (爬取所有帖子)")
+    print("  [2] 爬取最近5天")
+    print("  [3] 自定义日期范围 (YYYY-MM-DD)")
+    print()
+
+    choice = safe_input("  请选择 [1-3] (默认1): ") or "1"
+
+    if choice == "2":
+        today = date.today()
+        start = today - timedelta(days=5)
+        print(f"\n  日期范围: {start} ~ {today} (近5天)")
+        return start, today, False
+
+    elif choice == "3":
+        print()
+        start_str = safe_input("  起始日期 (YYYY-MM-DD, 如 2025-01-01): ")
+        end_str = safe_input("  结束日期 (YYYY-MM-DD, 如 2025-12-31, 留空=今天): ")
+        start_date = None
+        end_date = None
+        try:
+            if start_str:
+                start_date = datetime.strptime(start_str, "%Y-%m-%d").date()
+            if end_str:
+                end_date = datetime.strptime(end_str, "%Y-%m-%d").date()
+            else:
+                end_date = date.today()
+        except ValueError:
+            print("  日期格式错误，请使用 YYYY-MM-DD 格式")
+            return None, None, True
+
+        if start_date and end_date and start_date > end_date:
+            print("  起始日期不能晚于结束日期")
+            return None, None, True
+
+        print(f"\n  日期范围: {start_date or '不限'} ~ {end_date or '不限'}")
+        return start_date, end_date, False
+
+    else:
+        return None, None, False
+
+
+def func_scrape_list(interactive=True, max_posts=None, start_date=None,
+                      end_date=None, last_days=None):
     """功能1: 爬取帖子列表（通过TapTap API，游标分页）"""
     print_stage("阶段一: 爬取帖子列表 (API方式)")
     print()
     print("  通过TapTap内部API获取帖子列表 (游标分页)")
     print(f"  API: {scraper.FEED_API}")
     print(f"  Group ID: {scraper.GROUP_ID}")
-    print()
 
-    # 输入帖子数量限制
-    try:
-        limit_str = safe_input(f"  最多爬取帖子数 (默认1000, 输入0=全部, 最多约10000): ")
-        if limit_str:
-            max_posts = int(limit_str)
-        else:
-            max_posts = 1000
-    except ValueError:
-        print("  请输入有效数字")
+    start_date, end_date, cancelled = select_date_range(
+        interactive=interactive, start_date=start_date,
+        end_date=end_date, last_days=last_days
+    )
+    if cancelled:
         return
+
+    if interactive:
+        print()
+        try:
+            limit_str = safe_input("  最多爬取帖子数 (默认1000, 输入0=全部): ")
+            max_posts = int(limit_str) if limit_str else 1000
+        except ValueError:
+            print("  请输入有效数字")
+            return
+    else:
+        if max_posts is None:
+            max_posts = 1000
 
     if max_posts == 0:
         max_posts = None
-        print(f"\n  将爬取全部帖子（约10000条，耗时较长）")
-    else:
-        print(f"\n  最多爬取: {max_posts} 条帖子")
+
+    print(f"\n  最多爬取: {max_posts or '全部'} 条帖子")
     print(f"  请求间隔: {REQUEST_DELAY} 秒")
+    if start_date or end_date:
+        print(f"  日期范围: {start_date or '不限'} ~ {end_date or '不限'}")
 
     total_found = [0]
     total_new = [0]
@@ -176,7 +249,9 @@ def func_scrape_list():
 
     posts = scraper.scrape_list_via_api(
         session, max_posts=max_posts,
-        callback=progress_callback
+        callback=progress_callback,
+        start_date=start_date,
+        end_date=end_date
     )
 
     elapsed = time.time() - start_time
@@ -193,11 +268,10 @@ def func_scrape_list():
     session.close()
 
 
-def func_scrape_details():
+def func_scrape_details(interactive=True, limit=None):
     """功能2: 爬取帖子详情"""
     print_stage("阶段二: 爬取帖子详情页")
 
-    # 获取数据库中尚未爬取详情的帖子
     conn = db.get_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM posts WHERE content IS NULL OR content = ''")
@@ -205,7 +279,6 @@ def func_scrape_details():
     conn.close()
 
     if not pending:
-        # 尝试从列表页获取的帖子
         all_posts = db.get_all_posts()
         pending = [p for p in all_posts if not p.get("content")]
         if not pending:
@@ -216,13 +289,14 @@ def func_scrape_details():
     print(f"\n  待爬取详情的帖子: {len(pending)} 个")
     print(f"  请求间隔: {REQUEST_DELAY} 秒")
 
-    try:
-        limit_str = safe_input(f"\n  每次爬取数量 (默认全部, 输入0=全部): ")
-        limit = int(limit_str) if limit_str else 0
-    except ValueError:
-        limit = 0
+    if interactive:
+        try:
+            limit_str = safe_input("\n  每次爬取数量 (默认全部, 输入0=全部): ")
+            limit = int(limit_str) if limit_str else 0
+        except ValueError:
+            limit = 0
 
-    if limit > 0:
+    if limit and limit > 0:
         pending = pending[:limit]
         print(f"  限制爬取: {limit} 个")
     else:
@@ -250,7 +324,7 @@ def func_scrape_details():
     session.close()
 
 
-def func_analyze():
+def func_analyze(interactive=True, limit=None):
     """功能3: AI情感评分"""
     print_stage("阶段三: DeepSeek AI 情感评分")
     print()
@@ -263,13 +337,14 @@ def func_analyze():
     print(f"  待评分帖子: {len(unscored)} 个")
     print(f"  使用模型: {analyzer.DEEPSEEK_MODEL}")
 
-    try:
-        limit_str = safe_input(f"\n  每次评分数量 (默认全部, 0=全部): ")
-        limit = int(limit_str) if limit_str else 0
-    except ValueError:
-        limit = 0
+    if interactive:
+        try:
+            limit_str = safe_input("\n  每次评分数量 (默认全部, 0=全部): ")
+            limit = int(limit_str) if limit_str else 0
+        except ValueError:
+            limit = 0
 
-    if limit > 0:
+    if limit and limit > 0:
         unscored = unscored[:limit]
         print(f"  限制评分: {limit} 个")
     else:
@@ -295,17 +370,30 @@ def func_analyze():
     print_separator("-", 50)
 
 
-def func_auto():
+def func_auto(interactive=True, max_posts=None, start_date=None,
+               end_date=None, last_days=None):
     """功能4: 一键全流程"""
     print_stage("一键全流程: 列表(API) → 详情 → 评分")
     print()
 
-    try:
-        limit_str = safe_input(f"  最多爬取帖子数 (默认500, 输入0=全部): ")
-        max_posts = int(limit_str) if limit_str else 500
-    except ValueError:
-        print("  请输入有效数字")
+    start_date, end_date, cancelled = select_date_range(
+        interactive=interactive, start_date=start_date,
+        end_date=end_date, last_days=last_days
+    )
+    if cancelled:
         return
+
+    if interactive:
+        print()
+        try:
+            limit_str = safe_input("  最多爬取帖子数 (默认500, 输入0=全部): ")
+            max_posts = int(limit_str) if limit_str else 500
+        except ValueError:
+            print("  请输入有效数字")
+            return
+    else:
+        if max_posts is None:
+            max_posts = 500
 
     if max_posts == 0:
         max_posts = None
@@ -316,7 +404,10 @@ def func_auto():
 
     # === 步骤1: 爬取列表 (API) ===
     print_stage("步骤1/3: 爬取帖子列表 (API)")
-    posts = scraper.scrape_list_via_api(session, max_posts=max_posts)
+    posts = scraper.scrape_list_via_api(
+        session, max_posts=max_posts,
+        start_date=start_date, end_date=end_date
+    )
     print(f"  新增帖子: {len(posts)} 个")
 
     # === 步骤2: 爬取详情 (补充富文本) ===
@@ -339,7 +430,7 @@ def func_auto():
     print_separator("=", 50)
 
 
-def func_visualize():
+def func_visualize(interactive=True, open_browser=None):
     """功能5: 生成可视化网页"""
     print_stage("生成可视化网页")
     print()
@@ -349,13 +440,21 @@ def func_visualize():
     if path:
         print()
         print(f"  可视化网页: {path}")
-        try:
-            open_cmd = safe_input("  是否在浏览器中打开? (y/n, 默认y): ")
-            if open_cmd.lower() != "n":
+
+        should_open = open_browser
+        if interactive and should_open is None:
+            try:
+                open_cmd = safe_input("  是否在浏览器中打开? (y/n, 默认y): ")
+                should_open = open_cmd.lower() != "n"
+            except Exception:
+                should_open = False
+
+        if should_open:
+            try:
                 webbrowser.open(f"file:///{path.replace(os.sep, '/')}")
                 print("  已在浏览器中打开")
-        except Exception:
-            print("  请手动打开上述文件")
+            except Exception:
+                print("  请手动打开上述文件")
 
 
 def func_browse():
@@ -387,7 +486,6 @@ def func_browse():
                 title = (p.get("title") or "无标题")[:28]
                 score = str(p.get("score") or "-")
                 ptime = (p.get("post_time") or "")[:19]
-                # 中文宽度对齐
                 print(f"  {mid:<20} {title:<30} {score:<6} {ptime:<20}")
             print()
             print(f"  共显示 {len(posts)} 条记录")
@@ -496,7 +594,8 @@ def func_stats():
     print_result("每日汇总记录", stats["daily_records"])
     print_result("数据日期范围", stats["date_range"])
 
-    press_enter()
+    if __name__ != "__main__":
+        return  # CLI模式不等待回车
 
 
 def func_recompute_daily():
@@ -515,7 +614,137 @@ def func_recompute_daily():
     else:
         print("  没有数据可汇总")
 
-    press_enter()
+    if __name__ != "__main__":
+        return
+
+
+# ============================================================
+# 命令行参数解析
+# ============================================================
+
+def build_parser():
+    """构建命令行参数解析器"""
+    parser = argparse.ArgumentParser(
+        description="TapTap论坛爬虫 & 舆情分析系统 - 心动小镇",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+示例:
+  python main.py scrape-list --last-5-days
+  python main.py scrape-list --start-date 2025-05-01 --end-date 2025-05-25 --max-posts 500
+  python main.py scrape-details --limit 100
+  python main.py analyze --limit 50
+  python main.py auto --last-5-days
+  python main.py auto --start-date 2025-01-01 --end-date 2025-06-30 --max-posts 1000
+  python main.py visualize --open-browser
+  python main.py stats
+  python main.py recompute-daily
+"""
+    )
+
+    subparsers = parser.add_subparsers(dest="command", help="可用命令")
+
+    # ---- scrape-list ----
+    p_list = subparsers.add_parser("scrape-list", help="爬取帖子列表")
+    p_list.add_argument("--max-posts", type=int, default=None,
+                         help="最多爬取帖子数 (默认1000, 0=全部)")
+    p_list.add_argument("--start-date", type=str, default=None,
+                         help="起始日期 YYYY-MM-DD")
+    p_list.add_argument("--end-date", type=str, default=None,
+                         help="结束日期 YYYY-MM-DD")
+    p_list.add_argument("--last-5-days", action="store_true",
+                         help="爬取最近5天的帖子（覆盖--start-date/--end-date）")
+
+    # ---- scrape-details ----
+    p_details = subparsers.add_parser("scrape-details", help="爬取帖子详情")
+    p_details.add_argument("--limit", type=int, default=None,
+                            help="最多爬取数量 (默认全部)")
+
+    # ---- analyze ----
+    p_analyze = subparsers.add_parser("analyze", help="AI情感评分")
+    p_analyze.add_argument("--limit", type=int, default=None,
+                            help="最多评分数量 (默认全部)")
+
+    # ---- auto ----
+    p_auto = subparsers.add_parser("auto", help="一键全流程 (列表→详情→评分)")
+    p_auto.add_argument("--max-posts", type=int, default=None,
+                         help="最多爬取帖子数 (默认500, 0=全部)")
+    p_auto.add_argument("--start-date", type=str, default=None,
+                         help="起始日期 YYYY-MM-DD")
+    p_auto.add_argument("--end-date", type=str, default=None,
+                         help="结束日期 YYYY-MM-DD")
+    p_auto.add_argument("--last-5-days", action="store_true",
+                         help="爬取最近5天的帖子")
+
+    # ---- visualize ----
+    p_viz = subparsers.add_parser("visualize", help="生成可视化网页")
+    p_viz.add_argument("--open-browser", action="store_true",
+                        help="生成后自动在浏览器中打开")
+
+    # ---- stats ----
+    subparsers.add_parser("stats", help="显示数据库统计信息")
+
+    # ---- recompute-daily ----
+    subparsers.add_parser("recompute-daily", help="重新计算每日评分汇总")
+
+    return parser
+
+
+def run_cli(args):
+    """根据解析后的参数运行对应的功能"""
+    db.init_db()
+
+    if args.command == "scrape-list":
+        start_date = None
+        end_date = None
+        last_days = None
+
+        if args.last_5_days:
+            last_days = 5
+        else:
+            if args.start_date:
+                start_date = parse_date_arg(args.start_date)
+            if args.end_date:
+                end_date = parse_date_arg(args.end_date)
+
+        func_scrape_list(
+            interactive=False, max_posts=args.max_posts,
+            start_date=start_date, end_date=end_date,
+            last_days=last_days
+        )
+
+    elif args.command == "scrape-details":
+        func_scrape_details(interactive=False, limit=args.limit)
+
+    elif args.command == "analyze":
+        func_analyze(interactive=False, limit=args.limit)
+
+    elif args.command == "auto":
+        start_date = None
+        end_date = None
+        last_days = None
+
+        if args.last_5_days:
+            last_days = 5
+        else:
+            if args.start_date:
+                start_date = parse_date_arg(args.start_date)
+            if args.end_date:
+                end_date = parse_date_arg(args.end_date)
+
+        func_auto(
+            interactive=False, max_posts=args.max_posts,
+            start_date=start_date, end_date=end_date,
+            last_days=last_days
+        )
+
+    elif args.command == "visualize":
+        func_visualize(interactive=False, open_browser=args.open_browser)
+
+    elif args.command == "stats":
+        func_stats()
+
+    elif args.command == "recompute-daily":
+        func_recompute_daily()
 
 
 # ============================================================
@@ -523,10 +752,22 @@ def func_recompute_daily():
 # ============================================================
 
 def main():
-    """主程序入口"""
-    # 初始化数据库
+    """主程序入口 - 无参数时启动交互菜单，有参数时执行命令行模式"""
     db.init_db()
 
+    # 检查是否有命令行参数（排除脚本名本身）
+    if len(sys.argv) > 1:
+        parser = build_parser()
+        args = parser.parse_args()
+
+        if args.command is None:
+            parser.print_help()
+            return
+
+        run_cli(args)
+        return
+
+    # 交互式菜单模式
     while True:
         print_header()
         print_menu()
@@ -534,21 +775,23 @@ def main():
         choice = safe_input("  请选择功能 [0-8]: ")
 
         if choice == "1":
-            func_scrape_list()
+            func_scrape_list(interactive=True)
         elif choice == "2":
-            func_scrape_details()
+            func_scrape_details(interactive=True)
         elif choice == "3":
-            func_analyze()
+            func_analyze(interactive=True)
         elif choice == "4":
-            func_auto()
+            func_auto(interactive=True)
         elif choice == "5":
-            func_visualize()
+            func_visualize(interactive=True)
         elif choice == "6":
             func_browse()
         elif choice == "7":
             func_stats()
+            press_enter()
         elif choice == "8":
             func_recompute_daily()
+            press_enter()
         elif choice == "0":
             print()
             print("  感谢使用! 再见.")

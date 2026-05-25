@@ -112,17 +112,21 @@ def parse_api_post(item):
     }
 
 
-def scrape_list_via_api(session, max_posts=None, callback=None):
+def scrape_list_via_api(session, max_posts=None, callback=None,
+                         start_date=None, end_date=None):
     """
     通过API爬取帖子列表（游标分页）
     max_posts: 最多爬取帖子数，None表示全部
     callback: callback(page_num, posts_in_batch, new_count)
+    start_date: 起始日期 (datetime.date)，只爬取该日期及之后的帖子
+    end_date: 结束日期 (datetime.date)，只爬取该日期及之前的帖子
     返回: 所有新发现的帖子
     """
     all_posts = []
     total_new = 0
     batch_num = 0
     next_page = ""  # 第一页用空字符串
+    stopped_by_date = False
 
     base_params = {
         "X-UA": XUA_PLAIN,
@@ -134,7 +138,15 @@ def scrape_list_via_api(session, max_posts=None, callback=None):
         "with_hot_comment": "true",
     }
 
-    print(f"\n  开始API爬取 (group_id={GROUP_ID}, sort=created)")
+    date_info = ""
+    if start_date or end_date:
+        parts = []
+        if start_date:
+            parts.append(f"从 {start_date}")
+        if end_date:
+            parts.append(f"到 {end_date}")
+        date_info = "，".join(parts)
+    print(f"\n  开始API爬取 (group_id={GROUP_ID}, sort=created{', ' + date_info if date_info else ''})")
 
     while True:
         batch_num += 1
@@ -145,7 +157,6 @@ def scrape_list_via_api(session, max_posts=None, callback=None):
 
         params = dict(base_params)
         if next_page:
-            # next_page 是完整URL路径，需要从中提取 'from' 参数值
             from_match = re.search(r'[?&]from=(\d+)', next_page)
             if from_match:
                 params["from"] = from_match.group(1)
@@ -173,6 +184,23 @@ def scrape_list_via_api(session, max_posts=None, callback=None):
 
         batch_new = 0
         for item in post_list:
+            moment = item.get("moment", {})
+            created_ts = moment.get("created_time", 0)
+
+            # 日期过滤：获取帖子日期
+            post_date = None
+            if created_ts and isinstance(created_ts, (int, float)):
+                post_date = datetime.fromtimestamp(created_ts).date()
+
+            # 帖子比 end_date 新，跳过（等待更老的帖子）
+            if end_date and post_date and post_date > end_date:
+                continue
+
+            # 帖子比 start_date 老，停止整个爬取
+            if start_date and post_date and post_date < start_date:
+                stopped_by_date = True
+                break
+
             post = parse_api_post(item)
             if not post["moment_id"]:
                 continue
@@ -182,6 +210,10 @@ def scrape_list_via_api(session, max_posts=None, callback=None):
                 all_posts.append(post)
                 batch_new += 1
                 total_new += 1
+
+        if stopped_by_date:
+            print(f"  已到达起始日期 {start_date}，停止爬取")
+            break
 
         oldest_time = ""
         if post_list:

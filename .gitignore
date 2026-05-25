@@ -11,6 +11,12 @@ __pycache__/
 .vscode/
 .idea/
 
+# Auth
+.github_token
+
+# Logs
+logs/
+
 # OS
 .DS_Store
 Thumbs.db
