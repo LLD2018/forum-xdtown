@@ -491,7 +491,7 @@ def push_to_github():
     for f in files_to_add:
         result = subprocess.run(
             ["git", "add", f], cwd=project_dir,
-            capture_output=True, text=True
+            capture_output=True, text=True, encoding="utf-8", errors="replace"
         )
         if result.returncode != 0:
             print(f"  git add {f} 失败: {result.stderr.strip()}")
@@ -508,7 +508,7 @@ def push_to_github():
     commit_msg = f"chore: 自动更新可视化报告 {datetime.now().strftime('%Y-%m-%d %H:%M')}"
     result = subprocess.run(
         ["git", "commit", "-m", commit_msg], cwd=project_dir,
-        capture_output=True, text=True
+        capture_output=True, text=True, encoding="utf-8", errors="replace"
     )
     if result.returncode != 0:
         print(f"  git commit 失败: {result.stderr.strip()}")
@@ -518,7 +518,7 @@ def push_to_github():
     # 推送
     result = subprocess.run(
         ["git", "push"], cwd=project_dir,
-        capture_output=True, text=True
+        capture_output=True, text=True, encoding="utf-8", errors="replace"
     )
     if result.returncode == 0:
         print("  ✓ 推送成功")
