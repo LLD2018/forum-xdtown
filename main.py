@@ -10,6 +10,8 @@ import argparse
 import os
 import sys
 import time
+import shutil
+import subprocess
 import webbrowser
 from datetime import datetime, date, timedelta
 
@@ -430,6 +432,9 @@ def func_auto(interactive=True, max_posts=None, start_date=None,
 
     session.close()
 
+    # 推送到 GitHub
+    push_to_github()
+
     print()
     print_separator("=", 50)
     print("  全流程完成!")
@@ -461,6 +466,64 @@ def func_visualize(interactive=True, open_browser=None):
                 print("  已在浏览器中打开")
             except Exception:
                 print("  请手动打开上述文件")
+
+        # 推送到 GitHub
+        push_to_github()
+
+
+def push_to_github():
+    """将可视化网页和数据库推送到 GitHub"""
+    print_stage("推送到 GitHub")
+    print()
+
+    project_dir = os.path.dirname(os.path.abspath(__file__))
+    docs_index = os.path.join(project_dir, "docs", "index.html")
+    viz_path = os.path.join(project_dir, "output", "visualization.html")
+
+    # 复制可视化网页到 docs/ 目录
+    os.makedirs(os.path.dirname(docs_index), exist_ok=True)
+    shutil.copy2(viz_path, docs_index)
+    print(f"  已复制: output/visualization.html → docs/index.html")
+
+    # git 操作
+    files_to_add = ["data/forum.db", "docs/index.html", "output/visualization.html"]
+
+    for f in files_to_add:
+        result = subprocess.run(
+            ["git", "add", f], cwd=project_dir,
+            capture_output=True, text=True
+        )
+        if result.returncode != 0:
+            print(f"  git add {f} 失败: {result.stderr.strip()}")
+
+    # 检查是否有变更
+    diff_result = subprocess.run(
+        ["git", "diff", "--cached", "--quiet"], cwd=project_dir
+    )
+    if diff_result.returncode == 0:
+        print("  无新增变更，跳过提交")
+        return
+
+    # 提交
+    commit_msg = f"chore: 自动更新可视化报告 {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+    result = subprocess.run(
+        ["git", "commit", "-m", commit_msg], cwd=project_dir,
+        capture_output=True, text=True
+    )
+    if result.returncode != 0:
+        print(f"  git commit 失败: {result.stderr.strip()}")
+        return
+    print(f"  ✓ 提交: {commit_msg}")
+
+    # 推送
+    result = subprocess.run(
+        ["git", "push"], cwd=project_dir,
+        capture_output=True, text=True
+    )
+    if result.returncode == 0:
+        print("  ✓ 推送成功")
+    else:
+        print(f"  git push 失败: {result.stderr.strip()}")
 
 
 def func_browse():
