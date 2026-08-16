@@ -472,7 +472,7 @@ def func_visualize(interactive=True, open_browser=None):
 
 
 def push_to_github():
-    """将可视化网页和数据库推送到 GitHub"""
+    """将可视化网页和数据库推送到 GitHub（输出落日志 + 推送失败自动重试）"""
     print_stage("推送到 GitHub")
     print()
 
@@ -480,10 +480,29 @@ def push_to_github():
     docs_index = os.path.join(project_dir, "docs", "index.html")
     viz_path = os.path.join(project_dir, "output", "visualization.html")
 
+    # 日志文件: logs/push_YYYYMMDD.log（logs/ 已在 .gitignore 中排除）
+    log_dir = os.path.join(project_dir, "logs")
+    os.makedirs(log_dir, exist_ok=True)
+    log_file = os.path.join(log_dir, f"push_{datetime.now().strftime('%Y%m%d')}.log")
+
+    def log(msg):
+        """同时输出到控制台和日志文件"""
+        print(msg)
+        try:
+            with open(log_file, "a", encoding="utf-8") as f:
+                f.write(msg + "\n")
+        except OSError as e:
+            print(f"  (日志写入失败: {e})")
+
+    PUSH_MAX_RETRIES = 3
+    PUSH_RETRY_DELAY = 60  # 每次推送重试间隔（秒）
+
+    log(f"--- 推送任务开始 {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} ---")
+
     # 复制可视化网页到 docs/ 目录
     os.makedirs(os.path.dirname(docs_index), exist_ok=True)
     shutil.copy2(viz_path, docs_index)
-    print(f"  已复制: output/visualization.html → docs/index.html")
+    log(f"  已复制: output/visualization.html → docs/index.html")
 
     # git 操作
     files_to_add = ["data/forum.db", "docs/index.html", "output/visualization.html"]
@@ -494,14 +513,15 @@ def push_to_github():
             capture_output=True, text=True, encoding="utf-8", errors="replace"
         )
         if result.returncode != 0:
-            print(f"  git add {f} 失败: {result.stderr.strip()}")
+            log(f"  git add {f} 失败: {result.stderr.strip()}")
 
     # 检查是否有变更
     diff_result = subprocess.run(
         ["git", "diff", "--cached", "--quiet"], cwd=project_dir
     )
     if diff_result.returncode == 0:
-        print("  无新增变更，跳过提交")
+        log("  无新增变更，跳过提交")
+        log(f"--- 推送任务结束 {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} ---")
         return
 
     # 提交
@@ -511,19 +531,28 @@ def push_to_github():
         capture_output=True, text=True, encoding="utf-8", errors="replace"
     )
     if result.returncode != 0:
-        print(f"  git commit 失败: {result.stderr.strip()}")
+        log(f"  git commit 失败: {result.stderr.strip()}")
+        log(f"--- 推送任务结束 {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} ---")
         return
-    print(f"  ✓ 提交: {commit_msg}")
+    log(f"  ✓ 提交: {commit_msg}")
 
-    # 推送
-    result = subprocess.run(
-        ["git", "push"], cwd=project_dir,
-        capture_output=True, text=True, encoding="utf-8", errors="replace"
-    )
-    if result.returncode == 0:
-        print("  ✓ 推送成功")
+    # 推送（失败自动重试）
+    for attempt in range(1, PUSH_MAX_RETRIES + 1):
+        result = subprocess.run(
+            ["git", "push"], cwd=project_dir,
+            capture_output=True, text=True, encoding="utf-8", errors="replace"
+        )
+        if result.returncode == 0:
+            log("  ✓ 推送成功")
+            break
+        log(f"  ✗ git push 失败 (第 {attempt}/{PUSH_MAX_RETRIES} 次): {result.stderr.strip()}")
+        if attempt < PUSH_MAX_RETRIES:
+            log(f"  {PUSH_RETRY_DELAY} 秒后重试...")
+            time.sleep(PUSH_RETRY_DELAY)
     else:
-        print(f"  git push 失败: {result.stderr.strip()}")
+        log(f"  ✗ 推送最终失败（已重试 {PUSH_MAX_RETRIES} 次），请检查代理或网络")
+
+    log(f"--- 推送任务结束 {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} ---")
 
 
 def func_browse():
